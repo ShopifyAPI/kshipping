@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.PriceMapper">
+
+	
+	<select id="selectCodeGroup"  parameterType="String" resultType="String">
+		SELECT code_group AS codeGroup
+		  FROM tb_use_code
+		  WHERE code_discript = #{zoneCodeGroup}
+		  ORDER BY A.code_seq, A.code_id
+	</select>
+	
+    <select id="headerList"  parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.admin.price.PriceData">
+        SELECT A.code_id AS zoneCodeId
+             , FN_LOCALE_MESSAGE('B040000',A.code_id ,#{locale}) AS zoneCodeName
+		     , A.code_group AS zoneCodeGroup 
+		     , A.code_kname AS zoneCodeKname
+		     , A.code_ename AS zoneCodeEname
+		     , A.code_etc AS zoneCodeEtc
+		 FROM tb_use_code A
+		WHERE A.code_discript = #{zoneCodeGroup}		
+		ORDER BY A.code_seq, A.code_id
+    </select>
+    
+    <select id="feesWeightList"  parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.admin.price.PriceData">
+        SELECT CAST(TRUNCATE(weight * 0.001, 2) AS char(10)) AS weightKg
+             , CAST(weight AS char(10)) AS weightCode
+             , code AS code
+             , id AS zoneCodeGroup
+             , FN_LOCALE_MESSAGE('B010000',id ,#{locale}) AS shipCompany
+          FROM tb_shipping_fees
+		 WHERE code = #{zoneCodeGroup}
+		   AND id = #{zoneCodeId}
+	     GROUP BY weight
+		 ORDER BY weight ASC
+    </select>
+    
+    <select id="feesPriceMappingList"  parameterType="java.util.Map" resultType="com.shopify.admin.price.PriceViewData">
+        SELECT zone , IF(price IS NULL,'0',price) AS price
+          FROM tb_shipping_fees
+          WHERE 1 = 1
+            AND use_yn='Y'
+            AND id = #{zoneCodeGroup}
+            AND weight = #{weightCode}
+            AND code = #{service}
+            AND start_date &lt;= #{nowDate}
+            AND end_date &gt;= #{nowDate}
+            ORDER BY weight ASC 
+    </select>
+    
+    <select id="saleWeightList"  parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.admin.price.PriceData">
+        SELECT CAST(TRUNCATE(weight * 0.001, 2) AS char(10)) AS weightKg
+             , CAST(weight AS char(10)) AS weightCode
+             , code AS code
+             , id AS zoneCodeGroup
+             , FN_LOCALE_MESSAGE('B010000',id ,#{locale}) AS shipCompany
+          FROM tb_shipping_sale
+		 WHERE code = #{zoneCodeGroup}
+		   AND id = #{zoneCodeId}
+	     GROUP BY weight
+		 ORDER BY weight ASC
+    </select>
+    
+    <select id="salePriceMappingList"  parameterType="java.util.Map" resultType="com.shopify.admin.price.PriceViewData">
+        SELECT zone , IF(price IS NULL,'0',price) AS price
+          FROM tb_shipping_sale
+          WHERE 1 = 1
+            AND use_yn='Y'
+            AND id = #{zoneCodeGroup}
+            AND weight = #{weightCode}
+            AND code = #{service}
+            AND start_date &lt;= #{nowDate}
+            AND end_date &gt;= #{nowDate}
+            ORDER BY weight ASC 
+    </select>
+    
+    <select id="selectShipServiceList" parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.admin.price.PriceData" >
+        select 
+            code, code_kname, code_etc
+        from tb_shipping_company a 
+        join tb_use_code b on a.code=b.code_etc
+        where a.id=#{shipCompany}
+            and code_group=(select code_id from tb_use_code where code_etc=a.id) 
+            and a.use_yn='Y'
+            and b.use_yn='Y'
+        order by b.code_seq
+    </select>
+    
+    <!-- 조한두: 요금 매핑 관리 -->
+     <select id="selectPrice" parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.admin.price.PriceData" >
+        select 
+                IFNULL(FN_SHIPPING_FEES_PRICE(#{weight}, #{country}, #{shipCompany},(select code_id from tb_use_code WHERE code_etc = #{code} and code_group = #{codeGroup}),now()),0) as feesPrice
+                , IFNULL(FN_SHIPPING_SALE_PRICE(#{weight}, #{country}, #{shipCompany},(select code_id from tb_use_code WHERE code_etc = #{code} and code_group = #{codeGroup}),now()),0) as salesPrice
+                from dual;
+    </select>
+</mapper>

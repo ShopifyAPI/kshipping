@@ -1,0 +1,1597 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.OrderMapper">
+	
+	<insert id="insertOrderOne" parameterType="com.shopify.order.OrderData">
+		INSERT INTO tb_order_list  
+							(
+							shop_idx
+							,order_code
+							,order_name
+							,hide_yn
+							,order_date
+							,combine_yn
+							,buyer_firstname
+							,buyer_lastname
+							,buyer_phone
+							,buyer_email
+							,buyer_country_code
+							,buyer_country
+							,buyer_city
+							,buyer_province
+							,buyer_zip_code
+							,buyer_addr1
+							,buyer_addr2
+							,buyer_province_code
+							,total_price
+							,total_price_currency
+							,order_courier
+							,financial_status
+							,fulfillment_status
+							,shippingLineName
+							,shippingLineCode
+							)
+							VALUES 
+						    (
+						    	#{shopIdx}
+								,#{orderCode}
+								,#{orderName}
+								,#{hideYn}
+								,#{orderDate}
+								,#{combineYn}
+								,#{buyerFirstname}
+                                ,#{buyerLastname}
+                                ,#{buyerPhone}
+                                ,#{buyerEmail}
+                                ,#{buyerCountryCode}
+                                ,#{buyerCountry}
+                                ,#{buyerCity}
+                                ,#{buyerProvince}
+                                ,#{buyerZipCode}
+                                ,#{buyerAddr1}
+                                ,#{buyerAddr2}
+                                ,#{buyerProvinceCode}
+                                ,#{price}
+                                ,#{totalPriceCurrency}
+                                ,#{orderCourier}
+                                ,#{financialStatus}
+                                ,#{fulfillmentStatus}
+                                ,#{shippingLineName}
+                                ,#{shippingLineCode}
+						    )
+		<selectKey keyProperty="orderIdx" resultType="int">
+		  SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+    
+   
+	<update id="updateOrderOne" parameterType="com.shopify.order.OrderData">
+		UPDATE tb_order_list 
+		SET del_yn = #{delYn}
+		    ,order_name       = #{orderName}
+            ,buyer_firstname  = #{buyerFirstname}
+            ,buyer_lastname  = #{buyerLastname}
+            ,buyer_phone      = #{buyerPhone}
+            ,buyer_email       = #{buyerEmail}
+            ,buyer_country_code  = #{buyerCountryCode}
+            ,buyer_country    = #{buyerCountry}
+            ,buyer_city         = #{buyerCity}
+            ,buyer_province   = #{buyerProvince}
+            ,buyer_zip_code  = #{buyerZipCode}
+            ,buyer_addr1       = #{buyerAddr1}
+            ,buyer_addr2       = #{buyerAddr2}
+            ,buyer_province       = #{buyerProvinceCode}
+            ,order_courier   = #{orderCourier}
+            ,financial_status   = #{financialStatus}
+            ,fulfillment_status = #{fulfillmentStatus}
+			<if test="shippingLineName != null and shippingLineName != ''"> 
+			,shippingLineName = #{shippingLineName}
+			</if>
+			<if test="shippingLineCode != null and shippingLineCode != ''"> 
+			,shippingLineCode = #{shippingLineCode}
+			</if>
+		WHERE order_code = #{orderCode}
+	</update>
+    
+	<update id="deleteOrder" parameterType="com.shopify.order.OrderData">
+		update tb_order_list set del_yn = 'Y'  
+		WHERE shop_idx = #{shopIdx}
+			AND order_code = #{orderCode}
+	</update>
+
+    <select id="selectOneOrderCount" parameterType="com.shopify.order.OrderData" resultType="int">
+		SELECT count(*) AS orderCount FROM tb_order_list
+		WHERE shop_idx = #{shopIdx}
+			AND order_code = #{orderCode}
+			AND del_yn = 'N'
+	</select>
+	
+	<select id="selectOneOrder" parameterType="com.shopify.order.OrderData" resultType="com.shopify.order.OrderData">
+		SELECT 
+			order_idx 		    as orderIdx
+			,shop_idx		    as shopIdx
+			,order_code	        as orderCode
+			,hide_yn		    as hideYn
+			,order_date		    as orderDate
+			,buyer_firstname    as buyerFirstname
+			,buyer_lastname     as buyerLastname
+			,buyer_phone        as buyerPhone 
+			,buyer_email        as buyerEmail
+			,buyer_country_code as buyerCountryCode
+			,buyer_country      as buyerCountry
+			,buyer_city         as buyerCity
+			,buyer_province     as buyerProvince
+			,buyer_zip_code     as buyerZipCode
+			,buyer_addr1        as buyerAddr1
+			,buyer_addr2        as buyerAddr2
+			,buyer_province_code        as buyerProvinceCode
+			,order_courier
+			,shippingLineName
+			,shippingLineCode
+		FROM tb_order_list
+		WHERE shop_idx = #{shopIdx}
+			AND order_code = #{orderCode}
+			 AND del_yn = 'N'
+	</select>
+    
+    
+	<select id="selectOneOrderList" parameterType="com.shopify.order.OrderData" resultType="com.shopify.order.OrderData">
+		SELECT 
+			order_idx 		    as orderIdx
+			,shop_idx		    as shopIdx
+			,order_code	        as orderCode
+			,hide_yn		    as hideYn
+			,order_date		    as orderDate
+			,buyer_firstname    as buyerFirstname
+			,buyer_lastname     as buyerLastname
+			,buyer_phone        as buyerPhone 
+			,buyer_email        as buyerEmail
+			,buyer_country_code as buyerCountryCode
+			,buyer_country      as buyerCountry
+			,buyer_city         as buyerCity
+			,buyer_province     as buyerProvince
+			,buyer_zip_code     as buyerZipCode
+			,buyer_addr1        as buyerAddr1
+			,buyer_addr2        as buyerAddr2
+			,buyer_province_code        as buyerProvinceCode
+		FROM tb_order_list
+		WHERE order_code = #{orderCode}
+	</select>
+    
+    
+    <sql id="searchAllOrder">
+        <if test="shopIdx neq null and shopIdx != 0">
+        AND ol.shop_idx = #{shopIdx}
+        </if>
+        
+        <if test="orderIdx neq null and orderIdx != 0">
+        AND ol.order_idx = #{orderIdx}
+        </if>
+        
+        <if test="searchDestType != null and searchDestType != ''"> 
+	    	<choose>
+		        <when test="searchDestType == 'domestic'">
+		            AND ol.buyer_country_code = 'KR'
+		        </when>
+		        <when test="searchDestType == 'overseas'">
+                 <![CDATA[
+		            AND ol.buyer_country_code <> 'KR'
+		            ]]>
+		        </when>
+            </choose>
+        </if>
+        
+        <if test="searchCompany != null and searchCompany != ''"> 
+	    AND CC.company_code = #{searchCompany}
+        </if>
+        
+        <if test="searchDateStart neq null and searchDateStart != ''">
+            <if test="searchDateEnd neq null and searchDateEnd != ''">
+        AND DATE_FORMAT(ol.order_date,'%Y%m%d') between DATE_FORMAT(#{searchDateStart},'%Y%m%d') and DATE_FORMAT(#{searchDateEnd},'%Y%m%d') 
+            </if>
+            <if test="searchDateEnd eq null or searchDateEnd == ''">
+        AND DATE_FORMAT(ol.order_date,'%Y%m%d') &gt;= DATE_FORMAT(#{searchDateStart},'%Y%m%d') 
+            </if>
+        </if>
+        <if test="searchDateStart eq null or searchDateStart == ''">
+            <if test="searchDateEnd neq null and searchDateEnd != ''">
+        AND DATE_FORMAT(ol.order_date,'%Y%m%d') &lt;= DATE_FORMAT(#{searchDateEnd},'%Y%m%d')  
+            </if>
+        </if>
+        
+        <if test="searchWord != null and searchWord != ''"> 
+            <choose>
+            <when test="searchOrder == 'orderCode'">
+                 AND ol.order_name LIKE CONCAT('%', #{searchWord}, '%')
+            </when>
+            <when test="searchOrder == 'customerName'">
+                 AND (ol.buyer_firstname = #{searchWord} OR ol.buyer_lastname = #{searchWord} 
+                    OR CONCAT(ol.buyer_firstname,' ',ol.buyer_lastname) = #{searchWord})
+            </when>
+            </choose>
+        </if>
+    </sql>
+    
+	<!-- <주문 조회 수정 - "결제상태:paid, 활동상태: 활성"된 건 만 조회- yr[2020.05.11]) -->  
+	<select id="selectAllOrderCount"  parameterType="com.shopify.order.OrderData" resultType="int">
+		SELECT
+            count(*) AS orderCount
+		FROM (    
+			SELECT
+			  s.shop_name AS shopName
+			, ol.order_idx AS orderIdx
+			, ol.shop_idx AS shopIdx
+			, ol.order_code AS orderCode
+			, ol.order_name AS orderName
+			, ol.buyer_firstname AS buyerFirstname
+			, ol.buyer_lastname AS buyerLastname
+			, ol.buyer_zip_code AS orderZipCode
+			, ol.order_date AS orderDate
+			, ol.total_price AS totalPrice
+			, ol.total_price_currency
+			, ol.shippingLineName
+			, od.goods
+			, od.orderWeight
+			, od.detailCnt
+			, od.totalQuantity
+			, ifnull(dd.countryCode, ol.buyer_country_code) AS buyerCountryCode
+			, ol.buyer_zip_code AS buyerZipCode
+			, dd.weight
+			, (SELECT count(*) FROM tb_delivery_payment WHERE master_code = dd.masterCode) AS payment
+			FROM tb_order_list ol
+			LEFT JOIN tb_shop s ON ol.shop_idx = s.shop_idx
+			LEFT JOIN tb_seller sl ON s.email = sl.email
+			LEFT JOIN (
+				SELECT
+				  order_idx
+				, max(goods_code) AS goodsCode
+				, max(goods) AS goods
+				, sum(price) AS price
+				, sum(unit_cost) AS unitCost
+				, sum(weight) AS orderWeight
+				, max(customer_id) AS customerId
+				, max(customer_name) AS customerName
+				, count(*) AS detailCnt
+				, sum(quantity) AS totalQuantity
+				FROM tb_order_detail
+				WHERE (1=1)
+				GROUP BY order_idx
+			) od ON od.order_idx = ol.order_idx
+			LEFT JOIN (
+				SELECT
+				  order_code
+				, max(a.buyer_country_code) AS countryCode
+				, max(a.master_code) AS masterCode
+				, max(buyer_zip_code) AS buyerZipCode
+				, max(box_weight) AS weight
+				FROM tb_delivery a, tb_delivery_order b
+				WHERE a.master_code = b.master_code
+				GROUP BY b.order_code
+			) dd ON dd.order_code = ol.order_code
+			LEFT OUTER JOIN VI_CODE_COURIER_COMPANY as CC on ol.shippingLineCode = CC.courier_code
+			WHERE (1=1)
+	        <if test="searchWord != null and searchWord != '' and searchOrder == 'goods'"> 
+	            AND goods LIKE '%' #{searchWord} '%'
+	        </if>
+	        AND ol.del_yn = 'N'
+	        AND ol.hide_yn = 'N'
+	        AND s.email = #{email}
+			AND sl.shop_status = 'E020010'
+	        <!-- 검색조건처리 -->
+	        <include refid="searchAllOrder"></include>
+	 	) zz
+	 	WHERE (1=1)
+        <if test="searchOrderStatus neq null and searchOrderStatus == 1">
+			AND !(zz.payment > 0 AND zz.weight > 0)
+		</if>        
+        <if test="searchOrderStatus neq null and searchOrderStatus == 2">
+			AND zz.payment > 0 AND zz.weight > 0
+		</if> 	
+    </select>
+	    
+    <select id="selectAllOrder"  parameterType="com.shopify.order.OrderData" resultType="com.shopify.order.OrderData">
+		SELECT *
+		FROM (    
+			SELECT
+			  s.shop_name AS shopName
+			, ol.order_idx AS orderIdx
+			, ol.shop_idx AS shopIdx
+			, ol.order_code AS orderCode
+			, ol.order_name AS orderName
+			, ol.buyer_firstname AS buyerFirstname
+			, ol.buyer_lastname AS buyerLastname
+			, ol.buyer_zip_code AS orderZipCode
+			, ol.order_date AS orderDate
+			, ol.total_price AS totalPrice
+			, ol.total_price_currency
+			, ol.shippingLineName
+			, od.goods
+			, od.orderWeight
+			, od.detailCnt
+			, od.totalQuantity
+			, ifnull(dd.countryCode, ol.buyer_country_code) AS buyerCountryCode
+			, ol.buyer_zip_code AS buyerZipCode
+			, dd.weight
+			, (SELECT count(*) FROM tb_delivery_payment WHERE master_code = dd.masterCode) AS payment
+			, (case when #{locale} = 'ko' then CC.company_kname
+	            else CC.company_kname end) AS companyName
+			FROM tb_order_list ol
+			LEFT JOIN tb_shop s ON ol.shop_idx = s.shop_idx
+			LEFT JOIN tb_seller sl ON s.email = sl.email
+			LEFT JOIN (
+				SELECT
+				  order_idx
+				, max(goods_code) AS goodsCode
+				, max(goods) AS goods
+				, sum(price) AS price
+				, sum(unit_cost) AS unitCost
+				, sum(weight) AS orderWeight
+				, max(customer_id) AS customerId
+				, max(customer_name) AS customerName
+				, count(*) AS detailCnt
+				, sum(quantity) AS totalQuantity
+				FROM tb_order_detail
+				WHERE (1=1)
+				GROUP BY order_idx
+			) od ON od.order_idx = ol.order_idx
+			LEFT JOIN (
+				SELECT
+				  order_code
+				, max(a.buyer_country_code) AS countryCode
+				, max(a.master_code) AS masterCode
+				, max(buyer_zip_code) AS buyerZipCode
+				, max(box_weight) AS weight
+				FROM tb_delivery a, tb_delivery_order b
+				WHERE a.master_code = b.master_code
+				GROUP BY b.order_code
+			) dd ON dd.order_code = ol.order_code
+			LEFT OUTER JOIN VI_CODE_COURIER_COMPANY as CC on ol.shippingLineCode = CC.courier_code
+			WHERE (1=1)
+	        <if test="searchWord != null and searchWord != '' and searchOrder == 'goods'"> 
+	            AND goods LIKE '%' #{searchWord} '%'
+	        </if>
+	        AND ol.del_yn = 'N'
+	        AND ol.hide_yn = 'N'
+	        AND s.email = #{email}
+			AND sl.shop_status = 'E020010'
+	        <!-- 검색조건처리 -->
+	        <include refid="searchAllOrder"></include>
+	 	) zz
+	 	WHERE (1=1)
+        <if test="searchOrderStatus neq null and searchOrderStatus == 1">
+			AND !(zz.payment > 0 AND zz.weight > 0)
+		</if>        
+        <if test="searchOrderStatus neq null and searchOrderStatus == 2">
+			AND zz.payment > 0 AND zz.weight > 0
+		</if>        
+        <choose>
+            <when test="sortOrder == 'ASCshopName'">ORDER BY zz.shopName ASC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'DECshopName'">ORDER BY zz.shopName DESC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'ASCorderNo'">ORDER BY zz.orderIdx ASC</when>
+            <when test="sortOrder == 'DECorderNo'">ORDER BY zz.orderIdx DESC</when>
+            <when test="sortOrder == 'ASCproductName'">ORDER BY zz.goods ASC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'DECproductName'">ORDER BY zz.goods DESC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'ASCorderInfo'">ORDER BY zz.orderName ASC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'DECorderInfo'">ORDER BY zz.orderName DESC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'ASCcountry'">ORDER BY zz.orderName ASC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'DECcountry'">ORDER BY zz.orderName DESC, zz.orderDate DESC</when>
+            <when test="sortOrder == 'ASCorderDate'">ORDER BY zz.orderDate ASC</when>
+            <when test="sortOrder == 'DECorderDate'">ORDER BY zz.orderDate DESC</when>
+            <when test="sortOrder == 'ASCdetailCnt'">ORDER BY zz.detailCnt ASC</when>
+            <when test="sortOrder == 'DECdetailCnt'">ORDER BY zz.detailCnt DESC</when>
+            <when test="sortOrder == 'ASCzipCode'">ORDER BY zz.buyerZipCode ASC</when>
+            <when test="sortOrder == 'DECCzipCode'">ORDER BY zz.buyerZipCode DESC</when>
+            <when test="sortOrder == 'ASCcourier'">ORDER BY zz.shippingLineName ASC</when>
+            <when test="sortOrder == 'DECcourier'">ORDER BY zz.shippingLineName DESC</when>
+            <otherwise>ORDER BY zz.orderDate DESC</otherwise>
+        </choose>
+        <if test="currentPage != 0">         
+        	LIMIT #{startRow},#{rowPerPage}
+        </if>        
+    </select>
+    
+    <select id="selectOrderCode" parameterType="com.shopify.order.OrderData" resultType="com.shopify.order.OrderData">
+        SELECT 
+            order_code as orderCode
+            , order_name
+        FROM tb_order_list
+        WHERE del_yn = 'N'
+        AND hide_yn = 'N'
+        <choose>
+            <when test="list.size != 0">
+                AND order_code IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.orderCode}
+                </foreach>
+            </when>
+        </choose>
+        <choose>
+            <when test="list.size != 0">
+                AND shop_idx IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.shopIdx}
+                </foreach>
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectCombineCheckList" parameterType="com.shopify.order.OrderData" resultType="com.shopify.order.OrderData">
+        SELECT 
+            s.shop_idx
+            , ol.order_code
+            , ol.order_name
+            , ol.buyer_country_code
+            , ol.buyer_zip_code
+            , (select sum(weight) from tb_order_detail where order_idx=ol.order_idx) weight
+        FROM tb_order_list ol join tb_shop s on ol.shop_idx = s.shop_idx 
+        WHERE ol.del_yn = 'N'
+            AND ol.hide_yn = 'N'
+        <choose>
+            <when test="list.size != 0">
+                AND ol.order_code IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.orderCode}
+                </foreach>
+            </when>
+        </choose>
+        <choose>
+            <when test="list.size != 0">
+                AND ol.shop_idx IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.shopIdx}
+                </foreach>
+            </when>
+        </choose>
+    </select>
+    
+    
+    
+    <select id="selectDeliveryCombineCount" parameterType="com.shopify.order.OrderData" resultType="com.shopify.order.OrderData">
+		SELECT count(*) AS parentCodeCnt FROM tb_delivery_combine
+		WHERE 1=1
+		<if test="parentCode != null and parentCode != ''">
+		and parent_code = #{parentCode} 
+		</if>
+		<if test="childCode != null and childCode != ''">
+		and child_code = #{childCode}
+		</if>
+	</select>
+    <insert id="insertDeliveryCombine" parameterType="com.shopify.order.OrderData">
+    	insert into tb_delivery_combine (parent_code, child_code, child_shop_idx) values (#{parentCode}, #{childCode}, #{childShopIdx});
+    </insert>
+    
+   	<select id="selectDeliveryCombine" parameterType="String" resultType="com.shopify.order.OrderData">
+    	select * from tb_delivery_combine where parent_code=#{masterCode}
+    </select>
+    <update id="updateOrderCodeMerge" parameterType="com.shopify.order.OrderData" >
+        UPDATE
+            tb_order_list
+        SET  combine_yn = 'Y'
+        WHERE del_yn = 'N'
+        <choose>
+            <when test="list.size != 0">
+                AND order_idx IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.orderIdx}
+                </foreach>
+            </when>
+        </choose>
+        <choose>
+            <when test="list.size != 0">
+                AND shop_idx IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.shopIdx}
+                </foreach>
+            </when>
+        </choose>
+    </update>
+    
+    <update id="updateOrderDetailCodeMerge" parameterType="com.shopify.order.OrderData" >
+        UPDATE
+            tb_order_detail
+        SET  combine_yn = 'Y'
+        <choose>
+            <when test="list.size != 0">
+        	 , combine_order_idx =
+        		<foreach collection="list" item="item" index="index">
+                    #{item.combineOrderCode}
+                </foreach>
+        	</when>
+        </choose> 
+        WHERE del_yn = 'N'	 
+        <choose>
+            <when test="list.size != 0">
+                AND order_idx IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.orderIdx}
+                </foreach>
+            </when>
+        </choose>
+    </update>
+    
+    
+    <select id="selectOrderIdx" parameterType="String" resultType="int">
+    
+    	SELECT order_idx FROM tb_order_list
+    	 WHERE order_code = #{el}
+    </select>
+    
+    
+    <insert id="insertOrderDetail" parameterType="com.shopify.order.OrderData">
+        INSERT INTO tb_order_detail  
+                            (
+                            order_idx
+                            ,goods_code
+                            ,goods
+                            ,price
+                            ,unit_cost
+                            ,taxable
+                            ,barcode
+                            ,origin
+                            ,hscode
+                            ,weight
+                            ,weight_unit
+                            ,customer_id
+                            ,customer_name
+                            ,quantity
+                            ,location_id
+                            ,goods_item_id
+                            ,price_currency
+                            ,sku
+                            ,referring_site
+                            )
+                            VALUES 
+                            (
+                                #{orderIdx}
+                                ,#{goodsCode}
+                                ,#{goods}
+                                ,#{price}
+                                ,#{unitCost}
+                                ,#{taxable}
+                                ,#{barcode}
+                                ,#{origin}
+                                ,#{hscode}
+                                ,#{weight}
+                                ,#{weightUnit}
+                                ,#{customerId}
+                                ,#{customerName}
+                                ,#{quantity}
+                                ,#{locationId}
+                                ,#{goodsItemId}
+                                ,#{priceCurrency}
+                                ,#{sku}
+                                ,#{referringSite}
+                            )
+    </insert>
+    
+    <update id="updateOrderDetail" parameterType="com.shopify.order.OrderData">
+        UPDATE tb_order_detail 
+        SET goods_code                 = #{goodsCode}
+            ,goods                         = #{goods}
+            ,price                         = #{price}
+            ,unit_cost                     = #{unitCost}
+            ,taxable                       = #{taxable}
+            ,barcode                       = #{barcode}
+            ,origin                            = #{origin}
+            ,hscode                            = #{hscode}
+            ,weight                            = #{weight}
+            ,weight_unit                   = #{weightUnit}
+            ,customer_id                   = #{customerId}
+            ,customer_name             = #{customerName}
+            ,quantity                       = #{quantity}
+            ,location_id                    = #{locationId}
+            ,price_currency                 = #{priceCurrency}
+        WHERE order_idx = #{orderIdx} and goods_item_id = #{goodsItemId}
+    </update>
+ 
+    
+    <insert id="mergeOrderDetail" parameterType="com.shopify.order.OrderData">
+        INSERT INTO tb_order_detail (
+               order_idx
+               ,goods_code
+               ,goods
+               ,variants
+               ,price
+               ,unit_cost
+               ,taxable
+               ,barcode
+               ,origin
+               ,hscode
+               ,weight
+               ,weight_unit
+               ,customer_id
+               ,customer_name
+               ,quantity
+               ,location_id
+               ,goods_item_id
+               ,price_currency
+               ,sku
+               ,order_status_url
+               ,vendor
+               ,item_link
+          ) VALUES (
+               #{orderIdx}
+               ,#{goodsCode}
+               ,#{goods}
+               ,#{variants}
+               ,#{price}
+               ,#{unitCost}
+               ,#{taxable}
+               ,#{barcode}
+               ,#{origin}
+               ,#{hscode}
+               ,#{weight}
+               ,#{weightUnit}
+               ,#{customerId}
+               ,#{customerName}
+               ,#{quantity}
+               ,#{locationId}
+               ,#{goodsItemId}
+               ,#{priceCurrency}
+               ,#{sku}
+               ,#{orderStatusUrl}
+               ,#{vendor}
+               ,#{itemLink}
+           )
+        ON DUPLICATE KEY UPDATE
+            goods_code                 = #{goodsCode}
+            ,goods                         = #{goods}
+            ,variants                         = #{variants}
+            ,price                         = #{price}
+            ,unit_cost                     = #{unitCost}
+            ,taxable                       = #{taxable}
+            ,barcode                       = #{barcode}
+            ,origin                            = #{origin}
+            ,hscode                            = #{hscode}
+            ,weight                            = #{weight}
+            ,weight_unit                   = #{weightUnit}
+            ,customer_id                   = #{customerId}
+            ,customer_name             = #{customerName}
+            ,quantity                       = #{quantity}
+            ,location_id                    = #{locationId}
+            ,price_currency                 = #{priceCurrency}
+            ,sku                  = #{sku}
+            ,order_status_url 		=#{orderStatusUrl}
+            ,item_link              =#{itemLink}
+    </insert>
+
+    
+	<select id="selectOrderDetailGoods" parameterType="com.shopify.order.popup.OrderDeliverySkuData" resultType="string" >
+		SELECT goods
+		from tb_order_detail
+		WHERE order_idx = #{orderIdx}
+		and goods_item_id = #{goodsItemId}
+	</select>
+	
+	<update id="updateOrderDetailGoods" parameterType="com.shopify.order.popup.OrderDeliverySkuData">
+		update tb_order_detail 
+		set goods = #{goods}
+		WHERE order_idx = #{orderIdx}
+		and goods_item_id = #{goodsItemId}
+	</update>
+
+    
+	<update id="deleteOrderDetail" parameterType="com.shopify.order.OrderData">
+		update tb_order_detail set del_yn = 'Y' 
+		WHERE order_idx = #{orderIdx}
+	</update>
+
+    <select id="selectOneOrderDetailCount" parameterType="com.shopify.order.OrderData" resultType="int">
+		SELECT count(*) AS orderCount FROM tb_order_detail
+		WHERE order_idx = #{orderIdx} and goods_item_id = #{goodsItemId}
+	</select>
+    
+	<select id="selectAllOrderDetailCount" resultType="int" >
+		SELECT count(*) AS orderCount FROM tb_order_detail WHERE del_yn = 'N'
+	</select>
+	
+	
+	<!-- ### 팝업 설정  ### -->
+	<!-- 
+	   주소설정 > 배송에 저장된 주소 받아 오기 
+	-->
+	<select id="selectDeliveryAddress" parameterType="com.shopify.shipment.ShipmentData" resultType="com.shopify.shipment.ShipmentData">
+        SELECT 
+            B.master_code               as masterCode
+            , C.order_idx               as orderIdx
+            , C.order_code              as orderCode
+            , C.order_date              as orderDate
+            , B.shop_idx                as shopIdx
+            , B.combine_code            as combineCode
+            , B.select_sender           as selectSender
+            , B.seller_name             as sellerName
+            , B.seller_phone            as sellerPhone
+            , B.seller_country_code     as sellerCountryCode
+            , B.seller_country          as sellerCountry
+            , B.seller_city             as sellerCity
+            , B.seller_province         as sellerProvince
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1            as sellerAddr1
+            , B.seller_addr2            as sellerAddr2
+            , B.seller_addr1_ename      as sellerAddr1Ename
+            , B.seller_addr2_ename      as sellerAddr2Ename
+            , B.buyer_firstname         as buyerFirstname
+            , B.buyer_lastname          as buyerLastname
+            , B.buyer_phone             as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code      as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city              as buyerCity
+            , B.buyer_province          as buyerProvince
+            , B.buyer_province_code  as buyerProvinceCode
+            , B.buyer_zip_code          as buyerZipCode 
+            , B.buyer_addr1             as buyerAddr1
+            , B.buyer_addr2             as buyerAddr2
+            , B.select_box              as selectBox
+            , B.box_type                as boxType
+            , B.box_length              as boxLength
+			, B.box_width               as boxWidth
+			, B.box_height              as boxHeight 
+			, B.box_unit                as boxUnit 
+			, B.box_weight              as boxWeight 
+			, B.weight_unit             as weightUnit
+			, B.total_weight            as totalWeight
+			, (select order_courier from tb_order_list where order_code=C.order_code and shop_idx=A.shop_idx) as orderCourier
+			, (select shippingLineName from tb_order_list where order_code=C.order_code and shop_idx=A.shop_idx) as shippingLineName
+			, (select shippingLineCode from tb_order_list where order_code=C.order_code and shop_idx=A.shop_idx) as shippingLineCode
+        FROM tb_shop as A JOIN tb_delivery as B ON A.shop_idx = B.shop_idx
+            JOIN tb_delivery_order as C ON B.master_code = C.master_code
+        WHERE A.email = #{email} 
+            AND C.order_code = #{orderCode}
+            AND ifnull(B.combine_code,'') != 'Y'
+    </select>
+    
+	<select id="selectDeliveryAddressOrderList" parameterType="com.shopify.shipment.ShipmentData" resultType="com.shopify.shipment.ShipmentData">
+        SELECT 
+            B.master_code               as masterCode
+            , D.order_idx               as orderIdx
+            , C.order_code              as orderCode
+            , C.order_date              as orderDate
+            , B.shop_idx                as shopIdx
+            , B.combine_code            as combineCode
+            , B.select_sender           as selectSender
+            , B.seller_name             as sellerName
+            , B.seller_phone            as sellerPhone
+            , B.seller_country_code     as sellerCountryCode
+            , B.seller_country          as sellerCountry
+            , B.seller_city             as sellerCity
+            , B.seller_province         as sellerProvince
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1            as sellerAddr1
+            , B.seller_addr2            as sellerAddr2
+            , B.seller_addr1_ename      as sellerAddr1Ename
+            , B.seller_addr2_ename      as sellerAddr2Ename
+            , B.buyer_firstname         as buyerFirstname
+            , B.buyer_lastname          as buyerLastname
+            , B.buyer_phone             as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code      as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city              as buyerCity
+            , B.buyer_province          as buyerProvince
+            , B.buyer_province_code  as buyerProvinceCode
+            , B.buyer_zip_code          as buyerZipCode 
+            , B.buyer_addr1             as buyerAddr1
+            , B.buyer_addr2             as buyerAddr2
+            , B.select_box              as selectBox
+            , B.box_type                as boxType
+            , B.box_length              as boxLength
+			, B.box_width               as boxWidth
+			, B.box_height              as boxHeight 
+			, B.box_unit                as boxUnit 
+			, B.box_weight              as boxWeight 
+			, B.weight_unit             as weightUnit
+			, B.total_weight            as totalWeight
+            , D.order_courier           as orderCourier
+            , D.shippingLineName        as shippingLineName
+            , D.shippingLineCode        as shippingLineCode
+        FROM tb_shop as A 
+        JOIN tb_delivery as B ON A.shop_idx = B.shop_idx
+        JOIN tb_delivery_order as C ON B.master_code = C.master_code
+        JOIN tb_order_list AS D ON D.order_code = C.order_code AND D.shop_idx = A.shop_idx
+        WHERE A.email = #{email} 
+            AND C.order_code = #{orderCode}
+            AND ifnull(B.combine_code,'') != 'Y'
+    </select>
+    
+    <!-- 
+        관세정보 > 주문 디테일 정보 받아 오기 (출고지 정보와 매칭) 
+    -->
+    <select id="selectOrderDetailList" parameterType="com.shopify.order.OrderDetailSkuData" resultType="com.shopify.order.OrderDetailSkuData">
+        SELECT A.order_idx                       as orderIdx
+	        ,A.order_code                        as orderCode
+	        ,B.goods_code                        as goodsCode
+	        ,B.goods_item_id                     as goodsItemId
+	        ,B.goods                             as goods
+	        ,ifnull (C.item_type, '')            as goodsType  
+	        ,ifnull (C.item_sku, B.sku)             as goodsSku   
+	        ,ifnull (C.item_price, B.unit_cost)  as unitCost   
+	        ,B.price                             as price 
+	        ,B.taxable                           as taxable
+	        ,B.barcode                           as barcode
+	        ,ifnull (C.item_origin, B.origin)    as origin  
+	        ,ifnull (C.hscode, B.hscode)         as hscode  
+            ,ifnull (C.repre_item_nm, '')        as repreItemNm
+            ,ifnull (C.repre_item_nm_ru, '')     as repreItemNmRu
+	        ,ifnull (C.select_box, '')           as selectBox   
+                ,ifnull (C.box_length, '0')           as boxLength
+                ,ifnull (C.box_width, '0')            as boxwidth
+                ,ifnull (C.box_height, '0')           as boxheight
+                ,ifnull (C.box_unit, 'cm')             as boxUnit
+                ,ifnull (C.item_weight, '0')    as weight
+                ,ifnull (C.weight_unit, 'g') as weightUnit
+	        ,ifnull (C.item_qty, '')             as itemQty 
+	        ,B.customer_id                       as customerId
+	        ,B.customer_name                     as customerName
+	        ,B.combine_order_idx                 as combineOrderIdx
+	        ,C.shop_idx                          as shopIdx 
+	        ,C.sku_idx                           as skuIdx 
+	        ,B.quantity
+	        ,ifnull (C.price_currency, B.price_currency)  as priceCurrency
+	        ,B.order_status_url as orderStatusUrl
+	        ,B.vendor
+	        ,B.item_link as itemLink
+        FROM tb_order_list AS A 
+          JOIN tb_order_detail AS B ON A.order_idx=B.order_idx AND A.del_yn = 'N' AND B.del_yn = 'N'
+            LEFT OUTER JOIN tb_shop_sku C ON B.goods_code = C.item_code and A.shop_idx=C.shop_idx
+        WHERE 1=1
+        <choose>
+            <when test="arrOrderCode != null and arrOrderCode != 0">
+                AND A.order_code IN
+                <foreach collection="arrOrderCode" item="item" index="index" separator="," open="(" close=")">
+                    #{item, jdbcType=VARCHAR}
+                </foreach>
+                
+                AND A.shop_idx IN
+                <foreach collection="arrShopIdx" item="item" index="index" separator="," open="(" close=")">
+                    #{item, jdbcType=INTEGER}
+                </foreach>
+            </when>
+            <otherwise>
+            	AND A.shop_idx = #{shopIdx} AND A.order_code = #{orderCode}
+            </otherwise>
+        </choose>
+    </select>
+    
+    
+    
+    <!-- 
+       관세정보 > 배송에 저장된 관세정보 받아 오기 
+    -->
+    <select id="selectDeliverySkuList" parameterType="com.shopify.order.OrderDetailSkuData" resultType="com.shopify.order.OrderDetailSkuData">
+        SELECT B.order_idx
+			,B.goods_code
+			,B.goods_item_id
+			,B.goods
+			,B.goods_type
+			,B.goods_sku
+			,B.price
+			,B.unit_cost
+			,B.taxable
+			,B.barcode
+			,B.origin
+			,B.hscode
+			,B.box_title
+			,B.box_length
+			,B.box_width
+			,B.box_height
+			,B.box_unit
+			,B.box_weight
+			,B.weight
+			,B.weight_unit
+			,B.quantity
+			,B.reg_date
+			,B.price_currency
+			,B.item_link
+			,B.brand
+			,B.repre_item_nm as repreItemNm
+			,B.repre_item_nm_ru as repreItemNmRu
+        FROM tb_delivery AS A JOIN tb_delivery_sku AS B 
+                ON A.master_code=B.master_code
+        WHERE A.shop_idx = #{shopIdx} AND A.master_code = #{masterCode}  
+    </select>
+    
+    <!-- 
+       관세정보 > 배송업체 카운트
+    -->
+    <select id="selectDeliveryCount" parameterType="com.shopify.order.popup.OrderDeliveryData" resultType="int" >
+        SELECT count(*) FROM tb_delivery 
+        WHERE master_code = #{masterCode}
+    </select>
+    
+    <!-- 조한두: 팝업 저장시 주문 2개 생성 오류 (20.04.29)-->
+    <select id="selectDeliveryOrderCount" parameterType="com.shopify.order.popup.OrderDeliveryData" resultType="com.shopify.order.popup.OrderDeliveryData" >
+        SELECT order_code FROM tb_delivery_order 
+        WHERE order_idx = #{orderIdx}
+              and shop_idx = #{shopIdx}
+              and order_code = #{orderCode}
+              <if test="masterCode != null and masterCode != ''">
+              and master_code = #{masterCode}
+              </if>
+    </select>
+    <!--  조한두 : 같은 창에서 저장을 계속 누를시 카운트 -->
+    <select id="selectDeliveryOrderCount1" parameterType="com.shopify.order.popup.OrderDeliveryData" resultType="com.shopify.order.popup.OrderDeliveryData" >
+        SELECT master_code FROM tb_delivery_order 
+            WHERE order_code = #{orderCode}
+    </select>
+    
+    <!-- 
+       주문 > 팝업 > 배송정보 생성
+    -->
+    <insert id="insertDelivery" parameterType="com.shopify.order.popup.OrderDeliveryData">
+        INSERT INTO tb_delivery  
+                            ( master_code
+                            ,shop_idx
+                            ,select_sender
+                            ,seller_name
+                            ,seller_phone
+                            ,seller_country_code
+                            ,seller_country
+                            ,seller_city
+                            ,seller_province
+                            ,seller_zip_code
+                            ,seller_addr1
+                            ,seller_addr2
+                            ,seller_addr1_ename
+                            ,seller_addr2_ename
+                            ,buyer_firstname
+                            ,buyer_lastname
+                            ,buyer_phone
+                            ,buyer_email
+                            ,buyer_country_code
+                            ,buyer_country
+                            ,buyer_city
+                            ,buyer_province
+                            ,buyer_province_code
+                            ,buyer_zip_code
+                            ,buyer_addr1
+                            ,buyer_addr2
+                            ,select_box
+                            ,box_type
+                            ,box_length
+                            ,box_width
+                            ,box_height
+                            ,box_unit
+                            ,box_weight
+                            ,weight_unit
+                            ,total_weight
+                            ,combine_code
+                            )
+                            VALUES 
+                                (#{masterCode}
+                                ,#{shopIdx}
+                                ,#{selectSender}
+                                ,#{sellerName}
+                                ,#{sellerPhone}
+                                ,#{sellerCountryCode}
+                                ,#{sellerCountry}
+                                ,#{sellerCity}
+                                ,#{sellerProvince}
+                                ,#{sellerZipCode}
+                                ,#{sellerAddr1}
+                                ,#{sellerAddr2}
+                                ,#{sellerAddr1Ename}
+                                ,#{sellerAddr2Ename}
+                                ,#{buyerFirstname}
+                                ,#{buyerLastname}
+                                ,#{buyerPhone}
+                                ,#{buyerEmail}
+                                ,#{buyerCountryCode}
+                                ,(select code_ename from tb_use_code where code_group = 'F010000' and code_id = #{buyerCountryCode})
+                                ,#{buyerCity}
+                                ,#{buyerProvince}
+                                ,#{buyerProvinceCode}
+                                ,#{buyerZipCode}
+                                ,#{buyerAddr1}
+                                ,#{buyerAddr2}
+                                ,#{selectBox}
+                                ,#{boxType}
+                                ,#{boxLength}
+                                ,#{boxWidth}
+                                ,#{boxHeight}
+                                ,#{boxUnit}
+                                ,#{weight}
+                                ,#{weightUnit}
+                                ,#{totalWeight}
+                                ,#{combineCode}
+                                )
+    </insert>
+    
+    <!-- 
+       주문 > 팝업 > 배송정보 생성 (주문 연계)
+    -->
+    <insert id="insertDeliveryOrder" parameterType="com.shopify.order.popup.OrderDeliveryData" useGeneratedKeys="true" keyProperty="orderIdx">
+        INSERT INTO tb_delivery_order  
+                            ( shop_idx
+                                ,order_code
+                                ,master_code
+                                ,hide_yn
+                                ,order_date
+                            )
+                            VALUES 
+                                (#{shopIdx}
+                                 ,#{orderCode}
+                                 ,#{masterCode}
+                                 ,'N'
+                                 ,#{orderDate}
+                                ) 
+    </insert>
+
+    
+    <!-- 
+       주문 > 팝업 > 배송정보 수정
+    -->
+    <update id="updateDeliveryOrder" parameterType="com.shopify.order.popup.OrderDeliveryData">
+        UPDATE tb_delivery SET up_date = now()
+            <if test="buyerZipCode != null and buyerZipCode != ''"> 
+                ,select_sender = #{selectSender}
+                ,seller_phone = #{sellerPhone}
+                ,seller_zip_code = #{sellerZipCode}
+                ,seller_addr1 = #{sellerAddr1}
+                ,seller_addr2 = #{sellerAddr2}
+                ,seller_addr1_ename = #{sellerAddr1Ename}
+                ,seller_addr2_ename = #{sellerAddr2Ename}
+                ,seller_province = #{sellerProvince}
+                ,seller_city = #{sellerCity}
+                ,buyer_firstname = #{buyerFirstname}
+                ,buyer_lastname = #{buyerLastname}
+                ,buyer_phone = #{buyerPhone}
+                ,buyer_email = #{buyerEmail}
+                ,buyer_country_code = #{buyerCountryCode}
+                ,buyer_country = (select code_ename from tb_use_code where code_group = 'F010000' and code_id = #{buyerCountryCode})
+                ,buyer_city = #{buyerCity}
+                ,buyer_province = #{buyerProvince}
+                ,buyer_province_code = #{buyerProvinceCode}
+                ,buyer_zip_code = #{buyerZipCode}
+                ,buyer_addr1 = #{buyerAddr1}
+                ,buyer_addr2 = #{buyerAddr2}
+            </if>
+            <if test="boxLength != null and boxLength > 0"> 
+            	,select_box = #{selectBox}
+                ,box_type = #{boxType}
+                ,box_length = #{boxLength}
+                ,box_width = #{boxWidth}
+                ,box_height = #{boxHeight}
+                ,box_unit = #{boxUnit}
+                ,box_weight = #{weight}
+                ,weight_unit = #{weightUnit}
+                ,total_weight = #{totalWeight}
+            </if>
+        where master_code = #{masterCode}
+    </update>
+    
+
+    <!-- 
+       주문 > 팝업 > 배송 관세정보 카운트
+    -->
+    <select id="selectDeliverySkuCount" parameterType="com.shopify.order.popup.OrderDeliveryData" resultType="int" >
+        SELECT COUNT(*) FROM tb_delivery_sku WHERE master_code = #{masterCode} AND goods_item_id = #{goodsItemId};
+    </select>
+    
+    <!-- 
+       주문 > 팝업 > 배송 관세정보 등록
+    -->
+    <insert id="insertDeliverySku" parameterType="com.shopify.order.popup.OrderDeliverySkuData">
+        INSERT INTO tb_delivery_sku (
+			goods_code
+			,master_code
+			,order_idx
+			,goods
+			,goods_type
+			,goods_sku
+			,price
+			,unit_cost
+			,taxable
+			,barcode
+			,origin
+			,hscode
+			,box_length
+			,box_width
+			,box_height
+			,box_unit
+			,weight
+			,weight_unit
+			,quantity
+			,price_currency
+			,goods_item_id         
+			,item_link
+			,brand
+			,repre_item_nm
+			,repre_item_nm_ru
+        )
+        VALUES(
+            #{goodsCode}
+            ,#{masterCode}
+            ,#{orderIdx}
+            ,#{goods}
+            ,#{goodsType}
+            ,#{goodsSku}
+            ,#{price}
+            ,#{unitCost}
+            ,#{taxable}
+            ,#{barcode}
+            ,#{origin}
+            ,#{hscode}
+            ,#{boxLength}
+            ,#{boxWidth}
+            ,#{boxHeight}
+            ,#{boxUnit}
+            ,#{weight}
+            ,#{weightUnit}
+            ,#{quantity}
+            ,#{priceCurrency}
+            ,#{goodsItemId}
+            ,#{itemLink}
+            ,#{brand}
+            ,#{repreItemNm}
+            ,#{repreItemNmRu}
+        )
+    </insert>
+    
+    <!-- 
+       주문 > 팝업 > 배송 관세정보 수정
+    -->
+    <update id="updateDeliverySku" parameterType="com.shopify.order.popup.OrderDeliverySkuData">
+        update tb_delivery_sku set goods = #{goods}
+            ,goods_type = #{goodsType}
+            ,goods_sku = #{goodsSku}
+            ,price = #{price}
+            ,unit_cost = #{unitCost}
+            ,taxable = #{taxable}
+            ,barcode = #{barcode}
+            ,origin = #{origin}
+            ,hscode = #{hscode}
+            ,box_length = #{boxLength}
+            ,box_width = #{boxWidth}
+            ,box_height = #{boxHeight}
+            ,box_unit = #{boxUnit}
+            ,weight = #{weight}
+            ,weight_unit = #{weightUnit}
+            ,quantity = #{quantity}  
+            ,price_currency = #{priceCurrency}   
+            ,repre_item_nm = #{repreItemNm}
+            ,repre_item_nm_ru = #{repreItemNmRu}  
+            ,brand = #{brand}
+            ,item_link = #{itemLink}
+        where goods_item_id = #{goodsItemId} and master_code = #{masterCode}
+    </update>
+    
+    <!-- 
+       주문 > 팝업 > 세팅 관세정보 카운트
+    -->
+    <select id="selectSettingSkuCount" parameterType="com.shopify.order.popup.OrderDeliveryData" resultType="int" >
+        SELECT COUNT(*) FROM tb_shop_sku WHERE shop_idx = #{shopIdx} AND item_code = #{itemCode};
+    </select>
+    
+    <!-- 
+       주문 > 팝업 > 세팅 관세정보 등록
+    -->
+   <insert id="insertSettingSku" parameterType="com.shopify.order.popup.OrderDeliverySkuData">
+        INSERT INTO tb_shop_sku (
+            shop_idx
+            ,item_sku
+            ,item_code
+            ,item_name
+            ,item_qty
+            ,item_price
+            ,hscode   
+            ,price_currency
+            <if test="repreItemNm != null and repreItemNm != ''">
+                 ,repre_item_nm
+             </if>
+             <if test="repreItemNmRu != null and repreItemNmRu != ''">
+                 ,repre_item_nm_ru
+             </if>   
+            ,brand
+            ,item_link
+        )
+        VALUES(
+            #{shopIdx}
+            ,#{itemSku}
+            ,#{itemCode}
+            ,#{itemName}
+            ,#{itemQty}
+            ,#{itemPrice}
+            ,#{hscode}
+            ,#{priceCurrency}
+            <if test="repreItemNm != null and repreItemNm != ''">
+                  ,#{repreItemNm}
+             </if>
+             <if test="repreItemNmRu != null and repreItemNmRu != ''">
+                 ,#{repreItemNmRu}
+             </if>   
+            ,#{brand}
+            ,#{itemLink}
+        )
+    </insert>
+    
+    <!-- 
+       주문 > 팝업 > 세팅 관세정보 수정
+    -->
+    <update id="updateSettingSku" parameterType="com.shopify.order.popup.OrderDeliverySkuData">
+        update tb_shop_sku set item_sku = #{itemSku}
+            ,item_name = #{itemName}
+            ,item_qty = #{itemQty}
+            ,item_price = #{itemPrice}
+            ,hscode = #{hscode}     
+            ,price_currency = #{priceCurrency} 
+             <if test="repreItemNm != null and repreItemNm != ''">
+                ,repre_item_nm = #{repreItemNm}
+             </if>
+             <if test="repreItemNmRu != null and repreItemNmRu != ''">
+                ,repre_item_nm_ru = #{repreItemNmRu}    
+             </if>   
+            ,brand = #{brand}
+            ,item_link = #{itemLink}
+        where item_code = #{itemCode} and shop_idx = #{shopIdx}
+    </update>
+
+    
+    
+    <select id="selectLocalDelivery" parameterType="com.shopify.order.popup.LocalDeliveryData" resultType="com.shopify.order.popup.LocalDeliveryData">
+        <![CDATA[ 
+        select 
+            a.idx
+            ,a.id
+            ,a.code
+            ,a.zone
+            ,a.weight
+            ,a.price
+            ,a.start_date
+            ,a.end_date
+            ,a.use_yn
+            ,b.code_kname
+            ,b.code_ename
+            ,#{courierName} as courierName
+            ,FN_LOCALE_MESSAGE(b.code_group, b.code_id, #{locale}) as codeName 
+            , a.courier_id
+        from tb_shipping_fees a 
+            join tb_use_code b on a.zone=b.code_etc and a.code=b.code_discript
+        where a.use_yn = 'Y' and b.use_yn = 'Y'
+            and a.id = #{id} 
+            and a.code = #{code}
+            and start_date <= CURDATE()
+            and end_date >= CURDATE()
+        ]]>
+    </select>
+    
+    <!-- 
+       주문 > 팝업 > 배송정보 받아 오기 (롯데 로지스 기준)
+       , (select code_ename from tb_use_code tuc where tuc.code_id=C.id) as comName
+    -->
+    <select id="selectCourierList" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierData" >
+        select 
+            sa.id as comCode
+            , FN_LOCALE_MESSAGE('B010000',sa.id ,#{locale}) as comName
+            , sa.code
+            , FN_LOCALE_MESSAGE(b.code_group, b.code_id ,#{locale}) as codeName
+            , sa.zone
+            , MIN(sa.weight)  as weight 
+            , min(sa.price ) as price 
+            , sc.min_delivery_date as minDeliveryDate
+            , sc.max_delivery_date as maxDeliveryDate
+            , b.code_seq  
+            , bc.code_seq  comSeq
+            , b.code_id as courierId
+            , (price * FN_DISCOUNT_PRICE(#{email},sa.id,sa.code) * 0.01)  as rankPrice
+        from tb_shipping_fees sa 
+            join tb_shipping_zone sb on sa.zone=sb.zone and sb.service_code=sa.code
+            join tb_shipping_company sc on sc.id=sa.id and sc.code = sa.code
+            join tb_use_code b on b.code_id =sa.courier_id 
+            join tb_use_code bc on bc.code_id =sa.id 
+        where  sa.use_yn='Y'
+            and b.use_yn ='Y'
+            and sc.use_yn ='Y'
+           and sb.nation_code=#{nationCode}
+            and sa.start_date &lt;= #{nowDate}
+            and sa.end_date &gt;= #{nowDate}
+            and sa.weight &gt;= #{weight}
+            group by        sa.id, b.code_id, sa.code, sa.zone , sc.min_delivery_date, sc.max_delivery_date, b.code_seq, bc.code_seq
+            order by  b.code_seq, bc.code_seq 
+    </select>
+    
+    <select id="selectWeightCourierListWeightMin" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierDataWrapper" >
+        select 
+            sa.id as comCode
+            , FN_LOCALE_MESSAGE('B010000',sa.id ,#{locale}) as comName
+            , sa.code
+            , FN_LOCALE_MESSAGE(b.code_group, b.code_id ,#{locale}) as codeName
+            , sa.zone
+            , MIN(sa.weight)  as weight 
+            , MIN(sa.price ) as price 
+            , sc.min_delivery_date as minDeliveryDate
+            , sc.max_delivery_date as maxDeliveryDate
+            , b.code_seq  as serviceCode
+            , bc.code_seq as nationCode
+            , b.code_id as courierId
+            , (price * FN_DISCOUNT_PRICE(#{email},sa.id,sa.code) * 0.01)  as rankPrice
+        from tb_shipping_fees sa 
+            join tb_shipping_zone sb on sa.zone=sb.zone and sb.service_code=sa.code
+            join tb_shipping_company sc on sc.id=sa.id and sc.code = sa.code 
+            join tb_use_code b on b.code_id =sa.courier_id 
+            join tb_use_code bc on bc.code_id =sa.id 
+        where  sa.use_yn='Y'
+            and b.use_yn ='Y'
+            and sc.use_yn ='Y'
+    <![CDATA[
+           and sb.nation_code = #{nationCode}
+            and sa.start_date <= #{nowDate}
+            and sa.end_date >= #{nowDate}
+            and sa.weight >= #{weight}
+    ]]>
+            group by sa.id, b.code_id, sa.code, sa.zone , sc.min_delivery_date, sc.max_delivery_date, b.code_seq, bc.code_seq
+    </select>
+    
+    <select id="selectWeightCourierListWeightMax" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierDataWrapper" >
+        select 
+            sa.id as comCode
+            , FN_LOCALE_MESSAGE('B010000',sa.id ,#{locale}) as comName
+            , sa.code
+            , FN_LOCALE_MESSAGE(b.code_group, b.code_id ,#{locale}) as codeName
+            , sa.zone
+            , MAX(sa.weight)  as weight 
+            , MAX(sa.price ) as price 
+            , sc.min_delivery_date as minDeliveryDate
+            , sc.max_delivery_date as maxDeliveryDate
+            , b.code_seq  as serviceCode
+            , bc.code_seq as nationCode
+            , b.code_id as courierId
+            , (price * FN_DISCOUNT_PRICE(#{email},sa.id,sa.code) * 0.01)  as rankPrice
+        from tb_shipping_fees sa 
+            join tb_shipping_zone sb on sa.zone=sb.zone and sb.service_code=sa.code
+            join tb_shipping_company sc on sc.id=sa.id and sc.code = sa.code 
+            join tb_use_code b on b.code_id =sa.courier_id 
+            join tb_use_code bc on bc.code_id =sa.id 
+        where  sa.use_yn='Y'
+            and b.use_yn ='Y'
+            and sc.use_yn ='Y'
+    <![CDATA[
+           and sb.nation_code = #{nationCode}
+            and sa.start_date <= #{nowDate}
+            and sa.end_date >= #{nowDate}
+    ]]>
+            group by sa.id, b.code_id, sa.code, sa.zone , sc.min_delivery_date, sc.max_delivery_date, b.code_seq, bc.code_seq
+    </select>
+    
+    
+    <select id="selectWeightCourierListVolumeticMin" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierDataWrapper" >
+        select 
+            sa.id as comCode
+            , FN_LOCALE_MESSAGE('B010000',sa.id ,#{locale}) as comName
+            , sa.code
+            , FN_LOCALE_MESSAGE(b.code_group, b.code_id ,#{locale}) as codeName
+            , sa.zone
+            , MIN(sa.weight)  as weight 
+            , MIN(sa.price ) as price 
+            , sc.min_delivery_date as minDeliveryDate
+            , sc.max_delivery_date as maxDeliveryDate
+            , b.code_seq  as serviceCode
+            , bc.code_seq as nationCode
+            , b.code_id as courierId
+            , (price * FN_DISCOUNT_PRICE(#{email},sa.id,sa.code) * 0.01)  as rankPrice
+        from tb_shipping_fees sa 
+            join tb_shipping_zone sb on sa.zone=sb.zone and sb.service_code=sa.code
+            join tb_shipping_company sc on sc.id=sa.id and sc.code = sa.code AND sc.volumetic = 'Y' AND sc.divisor = #{divisor}
+            join tb_use_code b on b.code_id =sa.courier_id 
+            join tb_use_code bc on bc.code_id =sa.id 
+        where  sa.use_yn='Y'
+            and b.use_yn ='Y'
+            and sc.use_yn ='Y'
+    <![CDATA[
+           and sb.nation_code = #{nationCode}
+            and sa.start_date <= #{nowDate}
+            and sa.end_date >= #{nowDate}
+            and sa.weight >= #{weight}
+    ]]>
+            group by sa.id, b.code_id, sa.code, sa.zone , sc.min_delivery_date, sc.max_delivery_date, b.code_seq, bc.code_seq
+    </select>
+    
+    <select id="selectWeightCourierListVolumeticMax" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierDataWrapper" >
+        select 
+            sa.id as comCode
+            , FN_LOCALE_MESSAGE('B010000',sa.id ,#{locale}) as comName
+            , sa.code
+            , FN_LOCALE_MESSAGE(b.code_group, b.code_id ,#{locale}) as codeName
+            , sa.zone
+            , MAX(sa.weight)  as weight 
+            , MAX(sa.price ) as price 
+            , sc.min_delivery_date as minDeliveryDate
+            , sc.max_delivery_date as maxDeliveryDate
+            , b.code_seq  as serviceCode
+            , bc.code_seq as nationCode
+            , b.code_id as courierId
+            , (price * FN_DISCOUNT_PRICE(#{email},sa.id,sa.code) * 0.01)  as rankPrice
+        from tb_shipping_fees sa 
+            join tb_shipping_zone sb on sa.zone=sb.zone and sb.service_code=sa.code
+            join tb_shipping_company sc on sc.id=sa.id and sc.code = sa.code AND sc.volumetic = 'Y' AND sc.divisor = #{divisor}
+            join tb_use_code b on b.code_id =sa.courier_id 
+            join tb_use_code bc on bc.code_id =sa.id 
+        where  sa.use_yn='Y'
+            and b.use_yn ='Y'
+            and sc.use_yn ='Y'
+    <![CDATA[
+           and sb.nation_code = #{nationCode}
+            and sa.start_date <= #{nowDate}
+            and sa.end_date >= #{nowDate}
+    ]]>
+            group by sa.id, b.code_id, sa.code, sa.zone , sc.min_delivery_date, sc.max_delivery_date, b.code_seq, bc.code_seq
+    </select>
+    
+    
+	<select id="selectDomesticCourierList" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierData" >
+        select 
+            sa.id as comCode
+            , FN_LOCALE_MESSAGE('B010000',sa.id ,#{locale}) as comName
+            , sa.code
+            , FN_LOCALE_MESSAGE(b.code_group, b.code_id ,#{locale}) as codeName
+            , sa.zone
+            , MIN(sa.weight)  as weight 
+            , min(sa.price ) as price 
+            , sc.min_delivery_date as minDeliveryDate
+            , sc.max_delivery_date as maxDeliveryDate
+            , b.code_seq  
+            , bc.code_seq  comSeq
+            , b.code_id as courierId
+            , FN_LOCALE_MESSAGE(bd.code_group, bd.code_id, #{locale}) as boxType
+        from tb_shipping_fees sa 
+            join tb_shipping_zone sb on sb.service_code=sa.code
+            join tb_shipping_company sc on sc.id=sa.id and sc.code = sa.code
+            join tb_use_code b on b.code_id =sa.courier_id 
+            join tb_use_code bc on bc.code_id =sa.id
+            join tb_use_code bd on sa.zone=bd.code_etc and sa.code=bd.code_discript 
+        where  sa.use_yn='Y'
+            and b.use_yn ='Y'
+            and sc.use_yn ='Y'
+           and sb.nation_code=#{nationCode}
+            and sa.start_date &lt;= #{nowDate}
+            and sa.end_date &gt;= #{nowDate}
+            and sa.weight &gt;= #{weight}
+            group by        sa.id, b.code_id, sa.code, sa.zone , sc.min_delivery_date, sc.max_delivery_date, b.code_seq, bc.code_seq
+            order by sa.weight 
+    </select>
+
+
+
+    <!-- 
+       주문 > 팝업 > 배송정보 받아 오기
+    -->
+    <select id="selectPayment" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierData" >
+        SELECT 
+            payment_idx
+            ,master_code
+            ,pay_id
+			,payment_code
+			,invoice
+			,courier
+			,courier_company
+			,payment
+			,rank_price
+			,pay_weight
+			,pay_weight_unit
+			,pay_state
+        FROM tb_delivery_payment
+        WHERE master_code = #{masterCode}  
+        
+        <!-- 
+        <if test="paymentIdx != null and paymentIdx > 0"> 
+            AND payment_idx = #{paymentIdx}
+        </if>
+        
+        <if test="paymentCode != null and paymentCode != ''"> 
+            AND payment_code = #{paymentCode}
+        </if>
+            
+        <if test="invoice != null and invoice != ''"> 
+            AND invoice = #{invoice}
+        </if>
+        <if test="shippingLineCode != null and shippingLineCode != ''"> 
+            AND courier = #{shippingLineCode}
+        </if>
+         -->
+    </select>
+    
+    <!-- 
+       주문 > 팝업 > 특송배송사 등록
+    -->
+    <insert id="insertDeliveryPayment" parameterType="com.shopify.order.popup.OrderCourierData">
+        INSERT INTO tb_delivery_payment (
+             master_code
+            ,payment_code
+            ,invoice
+            ,courier_company
+            ,courier
+            ,payment
+            ,rank_price
+            ,pay_weight
+            ,pay_weight_unit
+            ,pay_state
+        )
+        values(
+            #{masterCode}
+            ,#{paymentCode}
+            ,#{invoice}
+            ,#{courierCompany}
+            ,#{courierId}
+            ,#{payment}
+            ,#{rankPrice}
+            ,#{payWeight}
+            ,#{payWeightUnit}
+            ,#{payState}
+        )
+    </insert>
+    
+    <!-- 
+       주문 > 팝업 > 특송배송사 수정
+    -->
+    <update id="updateDeliveryPayment" parameterType="com.shopify.order.popup.OrderCourierData">
+        update tb_delivery_payment set 
+            courier_company = #{courierCompany}
+            ,courier = #{courierId}
+            ,payment = #{payment}
+            ,rank_price = #{rankPrice}
+        where payment_idx = #{paymentIdx}
+    </update>
+    
+    <!-- 
+       주문 > 팝업 > 주문 -> 배송처리
+    -->
+    <update id="updateOrderhide" parameterType="com.shopify.order.OrderData">
+        update tb_order_list set hide_yn = #{hideYn} where order_code = #{orderCode} 
+    </update>
+   
+   	<select id="selectCombineCarrier" parameterType="com.shopify.shipment.ShipmentData" resultType="com.shopify.shipment.ShipmentData">
+        SELECT 
+			C.order_courier 			 as orderCourier
+			,C.shippingLineName 			 as shippingLineName
+			,C.shippingLineCode 			 as shippingLineCode
+        FROM tb_order_list as C JOIN tb_shop as A ON A.shop_idx = C.shop_idx
+       	    WHERE A.email = #{email} 
+            AND C.order_code = #{orderCode}
+            AND A.shop_idx = #{shopIdx}
+    </select>
+    
+    <select id="selectDefaultCourier" parameterType="com.shopify.shipment.ShipmentData" resultType="String">
+        SELECT code_id
+        FROM tb_shop_courier
+        WHERE (1=1)
+        AND nation_code = #{buyerCountryCode}
+        AND shop_idx = #{shopIdx}
+    </select>  
+    
+    <select id="selectOrderItemDetail" parameterType="String" resultType="com.shopify.order.popup.OrderDeliverySkuData">
+    SELECT  a.goods_item_id,
+         a.goods,
+         a.vendor AS brand,
+         a.item_link AS itemLink,
+         a.order_idx
+         FROM tb_order_detail a
+         JOIN tb_order_list b ON a.order_idx = b.order_idx
+         WHERE  b.order_code = #{orderCode}
+        
+    </select>
+    
+        <select id="selectCombineOrderItemDetail"  parameterType="String" resultType="com.shopify.order.popup.OrderDeliverySkuData">
+    SELECT  a.vendor AS brand,
+    	 a.item_link AS itemLink,
+    	 a.order_idx
+    	 FROM tb_order_detail a
+    	 JOIN tb_order_list b
+    ON a.order_idx = b.order_idx
+    	 WHERE  b.order_code IN
+                <foreach collection="array" item="item" index="index" separator="," open="(" close=")">
+                    #{item}
+                </foreach>
+    	
+  </select>
+    
+    <select id="selectBuyerCountryCode" parameterType="com.shopify.order.popup.OrderDeliveryData" resultType="String">
+    	SELECT
+    		buyer_country_code as buyerCountryCode
+    	FROM tb_delivery
+    	WHERE master_code = #{masterCode}
+    </select>
+    
+</mapper>

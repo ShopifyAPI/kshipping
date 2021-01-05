@@ -1,0 +1,1433 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminStatisMapper">
+    <!-- 
+        관리자 > 정산 > 매출원장 저장
+     -->
+    <insert id="insertStatisSales" parameterType="String">
+        <![CDATA[ 
+        insert into tb_statis_sales(
+            payment_date
+            ,payment_code
+            ,master_code
+            ,seller_email
+            ,company
+            ,rank_id
+            ,shop_idx
+            ,shop_name
+            ,total_weight
+            ,buyer_country_code
+            ,courier_company
+            ,courier_company_name
+            ,courier
+            ,courier_id
+            ,courier_name
+            ,pay_type
+            ,payment
+            ,rank_price
+            ,payment_vat
+            ,total_payment
+            ,box_type
+            ,sale_price
+            ,fees_price
+            ,pickup_price
+        )
+        select 
+            t.payment_date
+            , t.payment_code
+            , t.master_code
+            , t1.email as seller
+            , t2.company
+            , t2.rank_id
+            , t.shop_idx
+            , t1.shop_name
+            , t.total_weight
+            , t.buyer_country_code
+            , t.courier_company
+            , t.courier_company_name
+            , t.courier
+            , t.courier_id
+            , t.courier_name
+            , t.pay_type
+            , t.payment
+            , t.rank_price
+            , t.payment_vat
+            /* , (t.payment + t.payment_vat - t.rank_price) as total_payment */
+            , t.total_amount as total_payment  
+            , t.box_type
+            /* 
+            , IFNULL((case 
+                when t.payment_code = 'ND' then
+                    (select price from tb_shipping_sale tsf where tsf.id=t.courier_company and tsf.zone=t.box_type)  
+                when t.payment_code = 'EW' then
+                    0
+                else
+                   FN_SHIPPING_SALE_PRICE((total_weight * 1000), buyer_country_code, courier_company, courier, date(payment_date)) 
+             end), 0) as sale_price
+            */  
+            , IFNULL((case 
+                when t.payment_code = 'EW' then
+                    0
+                else
+                   FN_SHIPPING_SALE_PRICE((total_weight ), buyer_country_code, courier_company, courier, date(payment_date)) 
+             end), 0) as sale_price
+            /*
+            , IFNULL((case 
+                when t.payment_code = 'ND' then
+                    (select price from tb_shipping_fees tsf where tsf.id=t.courier_company and tsf.zone=t.box_type and courier_id)
+                when t.payment_code = 'EW' then
+                    0
+                else
+                    FN_SHIPPING_FEES_PRICE((total_weight * 1000), buyer_country_code, courier_company, courier, date(payment_date))
+             end), 0) as fees_price  
+             */
+             ,IFNULL((case 
+                when t.payment_code = 'EW' then
+                    0
+                else
+                    FN_SHIPPING_FEES_PRICE((total_weight ), buyer_country_code, courier_company, courier, date(payment_date))
+             end), 0) as fees_price 
+             , t.pickup_price 
+        from (
+            select a.master_code
+                , b.invoice
+                , a.shop_idx
+                , a.buyer_country_code 
+                , (a.total_weight * 1000) as total_weight
+                , b.payment_code
+                , b.courier_company
+                , (select code_kname from tb_use_code where code_id=b.courier_company) as courier_company_name
+                , b.courier
+                , (select code_kname from tb_use_code where code_id=b.courier) as courier_name
+                , b.payment
+                , b.rank_price
+                , b.payment_vat
+                , (select code_etc from tb_use_code where code_id=b.courier) as courier_id
+                , date(b.payment_date) payment_date 
+                , (select pay_type from tb_pay_info where pay_id=b.pay_id) pay_type
+                , '' as box_type
+                , b.pickup_price as pickup_price
+                , i.total_amount 
+            from tb_delivery a 
+                join tb_delivery_payment b on a.master_code=b.master_code
+                join tb_pay_info i on i.master_code = a.master_code
+            where 1 = 1  
+                and b.courier != ''
+                and b.pay_state = 'Y'
+                and date(payment_date) = #{nowDate}
+                and b.pay_id is not null 
+                and b.payment > 0
+                and i.total_amount > 0
+           union all
+                
+           select a.local_code as master_code
+                , a.invoice
+                , (select 
+                        tb.shop_idx 
+                    from tb_delivery tb 
+                        join tb_delivery_local_data tbld on tb.master_code=tbld.master_code 
+                    where tbld.local_code=a.local_code limit 1) as shop_idx
+                , 'KR' as buyer_country_code 
+                , (b.pay_weight) as total_weight
+                , b.payment_code
+                , b.courier_company
+                , (select code_kname from tb_use_code where code_id=b.courier_company) as courier_company_name
+                , b.courier
+                , (select code_kname from tb_use_code where code_id=b.courier) as courier_name
+                , b.payment
+                , b.rank_price
+                , b.payment_vat
+                , (select code_etc from tb_use_code where code_id=b.courier) as courier_id
+                , date(b.payment_date) payment_date 
+                , (select pay_type from tb_pay_info where pay_id=b.pay_id) pay_type
+                , (select code_etc from tb_use_code where code_id=a.box_type) as box_type
+                , b.pickup_price as pickup_price
+                , 0 as total_amount 
+           from tb_delivery_local a 
+                join tb_delivery_payment b on a.local_code=b.master_code
+            where 1 = 1
+                and b.courier != ''
+                and b.pay_state = 'Y'
+                and date(payment_date) = #{nowDate}
+                and b.pay_id is not null 
+                and b.payment > 0
+        ) t join tb_shop t1 on t.shop_idx = t1.shop_idx 
+            join tb_seller t2 on t1.email = t2.email 
+       ]]>
+    </insert>
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 저장
+     -->
+    <insert id="insertStatisSalesNew" parameterType="com.shopify.admin.statis.AdminStatisMakeData">
+    insert into tb_statis_sales(
+            payment_date
+            ,payment_code
+            ,master_code
+            ,seller_email
+            ,company
+            ,rank_id
+            ,shop_idx
+            ,shop_name
+            ,total_weight
+            ,buyer_country_code
+            ,courier_company
+            ,courier_company_name
+            ,courier
+            ,courier_id
+            ,courier_name
+            ,pay_type
+            ,payment
+            ,rank_price
+            ,payment_vat
+            ,sale_vat
+            ,total_payment
+            ,box_type
+            ,sale_price
+            ,fees_price
+            ,pickup_price
+            ,add_fees_price 
+            ,add_sale_price 
+            ,fees_total 
+            ,sale_total
+            ,add_fees_info 
+            ,add_sale_info 
+            ,company_calcul
+            ,reg_date
+      )
+ 
+      select 
+            payment_date
+            ,payment_code
+            ,master_code
+            , seller
+            ,company
+            ,rank_id
+            ,shop_idx
+            ,shop_name
+            ,total_weight
+            ,buyer_country_code
+            ,courier_company
+            ,courier_company_name
+            ,courier
+            ,courier_id
+            ,courier_name
+            ,pay_type
+            ,payment
+            ,rank_price
+            ,payment_vat
+            ,sale_vat
+            ,total_payment
+            ,box_type
+            ,sale_price
+            ,fees_price
+            ,pickup_price
+            ,add_fees_price 
+            ,add_sale_price 
+            , (total_payment + add_fees_price) as fees_total
+            , (sale_price + add_sale_price + sale_vat) as sale_total
+            ,add_fees_info 
+            ,add_sale_info 
+            <choose>
+                    <when test="crontab != null and crontab != ''">
+                        ,0
+                    </when>
+                    <otherwise>
+                        ,1
+                    </otherwise>
+            </choose>
+            , now()
+         from 
+        (
+        select 
+            t.payment_date
+            , t.payment_code
+            , t.master_code
+            , t1.email as seller
+            , t2.company
+            , t2.rank_id
+            , t.shop_idx
+            , t1.shop_name
+            , t.total_weight
+            , t.buyer_country_code
+            , t.courier_company
+            , t.courier_company_name
+            , t.courier
+            , t.courier_id
+            , t.courier_name
+            , t.pay_type
+            , t.payment
+            , t.rank_price
+            , t.payment_vat
+            , IFNULL((case 
+                when t.payment_vat > 0 then
+                    t.sale_vat
+                else
+                   0
+                end), 0) as sale_vat
+            , t.total_amount as total_payment 
+            , t.box_type
+            , IFNULL((case 
+                when t.payment_code = 'EW' then
+                    0
+                when t.payment_code = 'DO' then    
+                    (SELECT IF(price IS NULL,'0',price) AS price
+                          FROM tb_shipping_sale
+                          WHERE 1 = 1
+                            AND use_yn='Y'
+                            AND id = 'B010020'
+                            and zone   = t.box_type
+                            AND code = 'L_HOME'
+                            AND start_date &lt;= date(payment_date)
+                            AND end_date &gt;= date(payment_date))
+                else
+                   FN_SHIPPING_SALE_PRICE((total_weight ), buyer_country_code, courier_company, courier, date(payment_date)) 
+                end), 0) as sale_price
+            ,IFNULL((case 
+                when t.payment_code = 'EW' then
+                    0
+                when t.payment_code = 'DO' then    
+                    (SELECT IF(price IS NULL,'0',price) AS price
+                          FROM tb_shipping_fees
+                          WHERE 1 = 1
+                            AND use_yn='Y'
+                            AND id = 'B010020'
+                            and zone   = t.box_type
+                            AND code = 'L_HOME'
+                            AND start_date &lt;= date(payment_date)
+                            AND end_date &gt;= date(payment_date))
+                else
+                    FN_SHIPPING_FEES_PRICE((total_weight ), buyer_country_code, courier_company, courier, date(payment_date))
+             end), 0) as fees_price  
+             , t.pickup_price
+             , t.add_fees_price
+             , t.add_sale_price
+             , t.add_fees_info 
+             , t.add_sale_info 
+        from (
+            select DISTINCT(a.master_code)
+                , b.invoice
+                , a.shop_idx
+                , a.buyer_country_code 
+                -- , (a.total_weight * 1000) as total_weight
+                ,IFNULL((case
+                   when a.weight_unit = 'kg' then
+                       a.total_weight * 1000
+                   else 
+                       a.total_weight            
+                   end), 0) as total_weight 
+                , a.weight_unit 
+                , a.total_weight as tt
+                , b.payment_code
+                , b.courier_company
+                , (select code_kname from tb_use_code where code_id=b.courier_company) as courier_company_name
+                , b.courier
+                , (select code_kname from tb_use_code where code_id=b.courier) as courier_name
+                , b.payment
+                , b.rank_price
+                ,IFNULL((case 
+                        when b.payment_code = 'DO' then
+                            0
+                        else
+                            b.payment_vat 
+                        end), 0) as payment_vat
+                , (select code_etc from tb_use_code where code_id=b.courier) as courier_id
+                , date(b.payment_date) payment_date 
+                , (select pay_type from tb_pay_info where pay_id=b.pay_id) pay_type
+                , a.box_type
+                , b.pickup_price as pickup_price
+                , IFNULL(FN_SHIPPING_SALE_LOCAL_STAT(a.box_type , b.courier_company , b.payment_date )*0.1,0) as sale_vat
+                , i.total_amount 
+                , IFNULL((select sum(payment) from tb_add_payment p where p.master_code = a.master_code and p.payment_code = 'EW'),0) as add_fees_price   
+                , IFNULL((select sum(payment) from tb_add_payment s where s.master_code = a.master_code and s.payment_code = 'SW'),0) as add_sale_price   
+                , IFNULL((select add_charge_info from tb_add_payment p1 where p1.master_code = a.master_code and p1.payment_code = 'EW' limit 1),"") as add_fees_info    
+                , IFNULL((select add_charge_info from tb_add_payment p2 where p2.master_code = a.master_code and p2.payment_code = 'SW' limit 1),"") as add_sale_info   
+            from tb_delivery a 
+                join tb_delivery_payment b on a.master_code=b.master_code
+                join tb_pay_info i on i.master_code = a.master_code -- **********************************************************************
+            where 1 = 1  
+                and b.courier != ''
+                and b.pay_state = 'Y'
+                <if test="nowDate != null and nowDate != ''"> 
+                    and date(b.payment_date) = #{nowDate}
+                </if>
+                and b.pay_id is not null 
+                and b.payment > 0
+                and i.total_amount > 0
+                <if test="masterCode != null and masterCode != ''"> 
+                and b.master_code = #{masterCode}
+                </if>
+        ) t join tb_shop t1 on t.shop_idx = t1.shop_idx 
+            join tb_seller t2 on t1.email = t2.email   
+       ) tt
+    </insert>
+    
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 검색 조건
+     -->
+    <sql id="searchStatisSales">     
+        and payment_date between #{searchDateStart} and #{searchDateEnd}
+        
+        <if test="companyCalcul != null and companyCalcul !=''">
+            and  company_calcul IS FALSE 
+        </if> 
+       
+        <if test="sellerCalcul != null and sellerCalcul != ''">
+            and  seller_calcul is FALSE 
+        </if> 
+                           
+        <if test="searchPaymentCode != null and searchPaymentCode == 'EW' or searchPaymentCode == 'SW'"> 
+            and (add_fees_price > 0 or add_sale_price > 0 )
+        </if>
+  
+        <if test="searchPaymentCode != null and searchPaymentCode == 'DO' "> 
+            and payment_code = #{searchPaymentCode}
+        </if>
+        
+        <if test="searchPaymentCode != null and (searchPaymentCode == 'NA' or searchPaymentCode == 'ND') "> 
+            and payment_code IN ('NA','ND')
+        </if>
+        
+        <if test="searchCompany != null and searchCompany != ''"> 
+            and courier_company = #{searchCompany}
+        </if>
+        <if test="searchCourier != null and searchCourier != ''"> 
+            and courier = #{searchCourier}
+        </if>
+        <if test="searchSeller != null and searchSeller != ''"> 
+            and (seller_email like '%' #{searchSeller} '%' or company like '%' #{searchSeller} '%')
+        </if>        
+    </sql>
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 리스트 카운트
+     -->
+    <select id="selectStatisSalesCount"  parameterType="com.shopify.admin.statis.AdminStatisData" resultType="com.shopify.admin.statis.AdminStatisData">
+        select 
+            count(*) as totalCount
+            , IFNULL(sum(payment), 0) as sumPayment 
+            , IFNULL(sum(rank_price), 0) as sumRankPrice
+            , IFNULL(sum(payment_vat), 0) as sumPaymentVat
+            , IFNULL(sum(sale_vat), 0) as sumSaleVat
+            , IFNULL(sum(total_payment), 0) as sumTotalPayment
+            , IFNULL(sum(sale_price), 0) as sumSalePrice
+            , IFNULL(sum(fees_price), 0) as sumFeesPrice
+            , IFNULL(sum(pickup_price), 0) as sumPickupPrice
+            , IFNULL(sum(payment_vat), 0) as sumPaymentVatPrice
+            , IFNULL(sum(add_fees_price), 0) as sumAddFeesPrice
+            , IFNULL(sum(add_sale_price), 0) as sumAddSalePrice
+            , IFNULL(sum(fees_total), 0) as sumTotalFeesPrice
+            , IFNULL(sum(sale_total), 0) as sumTotalSalePrice
+        from tb_statis_sales 
+        where 1 = 1
+        <include refid="searchStatisSales"></include>    
+    </select>
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 리스트 카운트 : 국내픽업 (조한두)
+     -->
+    <select id="selectStatisSalesLocalCount"  parameterType="com.shopify.admin.statis.AdminStatisData" resultType="com.shopify.admin.statis.AdminStatisData">
+        select 
+            count(*) as totalCount
+            , IFNULL(sum(payment), 0) as sumPayment 
+            , IFNULL(sum(rank_price), 0) as sumRankPrice
+            , IFNULL(sum(payment_vat), 0) as sumPaymentVat
+            , IFNULL(sum(sale_vat), 0) as sumSaleVat
+            , IFNULL(sum(total_payment), 0) as sumTotalPayment
+            , IFNULL(sum(sale_price), 0) as sumSalePrice
+            , IFNULL(sum(fees_price), 0) as sumFeesPrice
+            , IFNULL(sum(pickup_price), 0) as sumPickupPrice
+            , IFNULL(sum(payment_vat), 0) as sumPaymentVatPrice
+            , IFNULL(sum(add_fees_price), 0) as sumAddFeesPrice
+            , IFNULL(sum(add_sale_price), 0) as sumAddSalePrice
+            , IFNULL(sum(fees_total), 0) as sumTotalFeesPrice
+            , IFNULL(sum(sale_total), 0) as sumTotalSalePrice
+        from tb_statis_sales 
+        where 1 = 1
+         
+        <include refid="searchStatisSales"></include>    
+    </select>
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 리스트
+     -->
+    <select id="selectStatisSales"  parameterType="com.shopify.admin.statis.AdminStatisData" resultType="com.shopify.admin.statis.AdminStatisData">
+        select
+            s.payment_date
+            ,s.payment_code
+            ,s.master_code
+            ,s.seller_email
+            ,s.company
+            ,s.rank_id
+            ,s.shop_idx
+            ,s.shop_name
+            ,s.total_weight
+            ,s.buyer_country_code
+            ,s.courier_company
+            ,s.courier_company_name
+            ,s.courier
+            ,s.courier_id
+            ,s.courier_name
+            ,s.total_weight
+            ,s.pay_type
+            ,s.payment
+            ,s.rank_price
+            ,s.payment_vat
+            ,s.sale_vat
+            ,s.total_payment
+            ,s.box_type
+            ,s.sale_price
+            ,s.fees_price 
+            ,s.pickup_price 
+            ,s.add_fees_price
+            ,s.add_sale_price
+            ,s.fees_total
+            ,s.sale_total
+            ,s.add_fees_info
+            ,s.add_sale_info
+            ,s.volume_weight as weight
+            ,IFNULL((case 
+                when s.company_calcul = 1 then
+                    'Y'
+                else
+                   'N'
+             end), 'N') as company_calcul_desc
+            ,IFNULL((case 
+                when s.seller_calcul = 1 then
+                    'Y'
+                else
+                   'N'
+             end), 'N') as seller_calcul_desc
+            , (select code_kname from tb_use_code where code_id = d.state) as state
+        from tb_statis_sales as s
+            join tb_delivery as d on d.master_code = s.master_code
+        where 1 = 1
+        <include refid="searchStatisSales"></include> 
+        
+        order by payment_date, seller_email, master_code
+        
+        <if test="startRow neq totalPageNum"> 
+            limit #{startRow}, #{pageSize}
+        </if>   
+    </select>
+    
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 리스트 : 국내픽업 (조한두)
+     -->
+    <select id="selectStatisLocalSales"  parameterType="com.shopify.admin.statis.AdminStatisData" resultType="com.shopify.admin.statis.AdminStatisData">
+        select
+            s.payment_date
+            ,s.payment_code
+            ,s.master_code
+            ,s.seller_email
+            ,s.company
+            ,s.rank_id
+            ,s.shop_idx
+            ,s.shop_name
+            ,s.total_weight
+            ,s.buyer_country_code
+            ,s.courier_company
+            ,s.courier_company_name
+            ,s.courier
+            ,s.courier_id
+            ,s.courier_name
+            ,s.total_weight
+            ,s.pay_type
+            ,s.payment
+            ,s.rank_price
+            ,s.payment_vat
+            ,s.sale_vat
+            ,s.total_payment
+            ,s.box_type
+            ,s.sale_price
+            ,s.fees_price 
+            ,s.pickup_price
+            ,s.add_fees_price
+            ,s.add_sale_price
+            ,s.fees_total
+            ,s.sale_total
+            ,IFNULL((case 
+                when s.company_calcul = 1 then
+                    'Y'
+                else
+                   'N'
+             end), 'N') as company_calcul_desc
+            ,IFNULL((case 
+                when s.seller_calcul = 1 then
+                    'Y'
+                else
+                   'N'
+             end), 'N') as seller_calcul_desc
+            , (select code_kname from tb_use_code where code_id = d.state) as state 
+        from tb_statis_sales as s
+            join tb_delivery as d on d.master_code = s.master_code
+        where 1 = 1
+          
+        <include refid="searchStatisSales"></include> 
+        
+        order by payment_date, seller_email, master_code
+        
+        <if test="startRow neq totalPageNum"> 
+            limit #{startRow}, #{pageSize}
+        </if>   
+    </select>
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 통계(일별/월별)
+     -->
+    <select id="selectStatisSalesTotal"  parameterType="com.shopify.admin.statis.AdminStatisTotalData" resultType="com.shopify.admin.statis.AdminStatisTotalData">
+        select
+            strDate as paymentDate
+            ,IFNULL(ndCount, 0) as ndCount
+            ,IFNULL(ndPayment, 0) as ndPayment
+            ,IFNULL(ndRankPrice, 0) as ndRankPrice
+            ,IFNULL(ndPaymentVat, 0) as ndPaymentVat
+            ,IFNULL(ndTotalPayment, 0) as ndTotalPayment
+            ,IFNULL(ndSalePrice, 0) as ndSalePrice
+            ,IFNULL(ndFeesPrice, 0) as ndFeesPrice
+            ,IFNULL(naCount, 0) as naCount
+            ,IFNULL(naPayment, 0) as naPayment
+            ,IFNULL(naRankPrice, 0) as naRankPrice
+            ,IFNULL(naPaymentVat, 0) as naPaymentVat
+            ,IFNULL(naTotalPayment, 0) as naTotalPayment
+            ,IFNULL(naSalePrice, 0) as naSalePrice
+            ,IFNULL(naFeesPrice, 0) as naFeesPrice
+            ,IFNULL(ewCount, 0) as ewCount
+            ,IFNULL(ewPayment, 0) as ewPayment
+            ,IFNULL(ewRankPrice, 0) as ewRankPrice
+            ,IFNULL(ewPaymentVat, 0) as ewPaymentVat
+            ,IFNULL(ewTotalPayment, 0) as ewTotalPayment
+            ,IFNULL(ewSalePrice, 0) as ewSalePrice
+            ,IFNULL(ewFeesPrice, 0) as ewFeesPrice
+            ,IFNULL(ndCount + naCount + ewCount, 0) as totalCount
+            ,IFNULL(ndPayment + naPayment + ewPayment, 0) as sumPayment
+            ,IFNULL(ndRankPrice + naRankPrice + ewRankPrice, 0) as sumRankPrice
+            ,IFNULL(ndPaymentVat + naPaymentVat + ewPaymentVat, 0) as sumPaymentVat
+            ,IFNULL(ndTotalPayment + naTotalPayment + ewTotalPayment, 0) as sumTotalPayment
+            ,IFNULL(ndSalePrice + naSalePrice + ewSalePrice, 0) as sumSalePrice
+            ,IFNULL(ndFeesPrice + naFeesPrice + ewFeesPrice, 0) as sumFeesPrice
+        from (
+            select  
+                <choose>
+                    <when test="searchDatetype != null and searchDatetype == 'day'">
+                        paymentDate
+                    </when>
+                    <otherwise>
+                        date_format(paymentDate, '%Y-%m') as paymentDate
+                    </otherwise>
+                </choose>
+                ,count(*) as totalCount
+                ,sum(ndCount) as ndCount
+                ,sum(ndPayment) as ndPayment
+                ,sum(ndRankPrice) as ndRankPrice
+                ,sum(ndPaymentVat) as ndPaymentVat
+                ,sum(ndTotalPayment) as ndTotalPayment
+                ,sum(ndSalePrice) as ndSalePrice
+                ,sum(ndFeesPrice) as ndFeesPrice
+                ,sum(naCount) as naCount
+                ,sum(naPayment) as naPayment
+                ,sum(naRankPrice) as naRankPrice
+                ,sum(naPaymentVat) as naPaymentVat
+                ,sum(naTotalPayment) as naTotalPayment
+                ,sum(naSalePrice) as naSalePrice
+                ,sum(naFeesPrice) as naFeesPrice
+                ,sum(ewCount) as ewCount
+                ,sum(ewPayment) as ewPayment
+                ,sum(ewRankPrice) as ewRankPrice
+                ,sum(ewPaymentVat) as ewPaymentVat
+                ,sum(ewTotalPayment) as ewTotalPayment
+                ,sum(ewSalePrice) as ewSalePrice
+                ,sum(ewFeesPrice) as ewFeesPrice
+            from (
+                select 
+                    payment_date as paymentDate
+                    ,count(*) as ndCount
+                    ,IFNULL(sum(payment), 0) as ndPayment
+                    ,IFNULL(sum(rank_price), 0) as ndRankPrice
+                    ,IFNULL(sum(payment_vat), 0) as ndPaymentVat
+                    ,IFNULL(sum(total_payment), 0) as ndTotalPayment
+                    ,IFNULL(sum(sale_price), 0) as ndSalePrice
+                    ,IFNULL(sum(fees_price), 0) as ndFeesPrice
+                    ,0 as naCount
+                    ,0 as naPayment
+                    ,0 as naRankPrice
+                    ,0 as naPaymentVat
+                    ,0 as naTotalPayment
+                    ,0 as naSalePrice
+                    ,0 as naFeesPrice
+                    ,0 as ewCount
+                    ,0 as ewPayment
+                    ,0 as ewRankPrice
+                    ,0 as ewPaymentVat
+                    ,0 as ewTotalPayment
+                    ,0 as ewSalePrice
+                    ,0 as ewFeesPrice
+                from tb_statis_sales 
+                where 1 = 1
+                   and payment_code = 'ND'
+                   <include refid="searchStatisSales"></include>  
+                group by payment_date
+                
+                union all
+                
+                select 
+                    payment_date as paymentDate
+                    ,0 as ndCount
+                    ,0 as ndPayment
+                    ,0 as ndRankPrice
+                    ,0 as ndPaymentVat
+                    ,0 as ndTotalPayment
+                    ,0 as ndSalePrice
+                    ,0 as ndFeesPrice
+                    ,count(*) as naCount
+                    ,IFNULL(sum(payment), 0) as naPayment
+                    ,IFNULL(sum(rank_price), 0) as naRankPrice
+                    ,IFNULL(sum(payment_vat), 0) as naPaymentVat
+                    ,IFNULL(sum(total_payment), 0) as naTotalPayment
+                    ,IFNULL(sum(fees_price), 0) as naSalePrice
+                    ,IFNULL(sum(sale_price), 0) as naFeesPrice
+                    ,0 as ewCount
+                    ,0 as ewPayment
+                    ,0 as ewRankPrice
+                    ,0 as ewPaymentVat
+                    ,0 as ewTotalPayment
+                    ,0 as ewSalePrice
+                    ,0 as ewFeesPrice
+                from tb_statis_sales 
+                where 1 = 1
+                   and payment_code = 'NA'
+                   <include refid="searchStatisSales"></include>  
+                group by payment_date
+                
+                union all
+                
+                select 
+                    payment_date as paymentDate
+                    ,0 as ndCount
+                    ,0 as ndPayment
+                    ,0 as ndRankPrice
+                    ,0 as ndPaymentVat
+                    ,0 as ndTotalPayment
+                    ,0 as ndSalePrice
+                    ,0 as ndFeesPrice
+                    ,0 as naCount
+                    ,0 as naPayment
+                    ,0 as naRankPrice
+                    ,0 as naPaymentVat
+                    ,0 as naTotalPayment
+                    ,0 as naSalePrice
+                    ,0 as naFeesPrice
+                    ,count(*) as ewCount
+                    ,IFNULL(sum(payment), 0) as ewPayment
+                    ,IFNULL(sum(rank_price), 0) as ewRankPrice
+                    ,IFNULL(sum(payment_vat), 0) as ewPaymentVat
+                    ,IFNULL(sum(total_payment), 0) as ewTotalPayment
+                    ,IFNULL(sum(fees_price), 0) as ewSalePrice
+                    ,IFNULL(sum(sale_price), 0) as ewFeesPrice
+                from tb_statis_sales 
+                where 1 = 1
+                   and payment_code = 'EW'
+                   <include refid="searchStatisSales"></include>
+                group by payment_date
+            ) as t 
+            group by paymentDate
+          ) t1   
+          right outer join (
+            <choose>
+                <when test="searchDatetype != null and searchDatetype == 'day'">
+                    <include refid="dailyStatisDate"></include> 
+                </when>
+                <otherwise>
+                    <include refid="monthyStatisDate"></include> 
+                </otherwise>
+            </choose>
+          ) d on t1.paymentDate=d.strDate
+          order by strDate
+    </select>
+    
+        <!-- 
+        관리자 > 정산 > 매출원장 통계(일별/월별) - 신규 
+     -->
+    <select id="selectStatisSalesTotalNew"  parameterType="com.shopify.admin.statis.AdminStatisTotalData" resultType="com.shopify.admin.statis.AdminStatisTotalData">
+        select
+            strDate as paymentDate
+            ,IFNULL(ndCount, 0) as ndCount               
+            ,IFNULL(ndPayment, 0) as ndPayment           
+            ,IFNULL(ndVat, 0) as ndVat
+            ,IFNULL(ndAddPayment, 0) as ndAddPayment
+            ,IFNULL(ndTotalPrice, 0) as ndTotalPrice
+             
+            ,IFNULL(doCount, 0) as doCount
+            ,IFNULL(doPayment, 0) as doPayment
+            ,IFNULL(doVat, 0) as doVat
+            ,IFNULL(doAddPayment, 0) as doAddPayment
+            ,IFNULL(doTotalPrice, 0) as doTotalPrice
+             
+            ,IFNULL(ewCount, 0) as ewCount
+            ,IFNULL(ewPayment, 0) as ewPayment
+            ,IFNULL(ewVat, 0) as ewVat
+            
+            ,IFNULL(ndCount+doCount+ewCount, 0) as totalCount
+            ,IFNULL(ndPayment + doPayment , 0) as sumPayment
+            ,IFNULL(ndAddPayment + doAddPayment , 0) as sumAddPayment
+            ,IFNULL(ndVat + doVat, 0) as sumPaymentVat
+            ,IFNULL(ndTotalPrice + doTotalPrice, 0) as sumTotalPayment
+        from (
+            select  
+                paymentDate
+                ,count(*) as totalCount
+                ,sum(ndCount) as ndCount
+                ,sum(ndPayment) as ndPayment
+                ,sum(ndVat) as ndVat
+                ,sum(ndAddPayment) as ndAddPayment
+                ,sum(ndTotalPrice) as ndTotalPrice
+                
+                ,sum(doCount) as doCount
+                ,sum(doPayment) as doPayment
+                ,sum(doVat) as doVat
+                ,sum(doAddPayment) as doAddPayment
+                ,sum(doTotalPrice) as doTotalPrice
+                
+                ,sum(ewCount) as ewCount
+                ,sum(ewPayment) as ewPayment
+                ,sum(ewVat) as ewVat
+            from (
+                select 
+                    <choose>
+                    <when test="searchDatetype != null and searchDatetype == 'day'">
+                        payment_date
+                    </when>
+                    <otherwise>
+                        date_format(payment_date, '%Y-%m') as paymentDate
+                    </otherwise>
+                    </choose>
+                    ,count(*) as ndCount
+                    ,IFNULL(sum(total_payment), 0) as ndPayment
+                    ,IFNULL(sum(payment_vat), 0) as ndVat
+                    ,IFNULL(sum(add_fees_price), 0) as ndAddPayment
+                    ,IFNULL(sum(fees_total), 0) as ndTotalPrice
+                    ,0 as doCount
+                    ,0 as doPayment
+                    ,0 as doVat
+                    ,0 as doAddPayment
+                    ,0 as doTotalPrice
+                    ,0 as ewCount
+                    ,0 as ewPayment
+                    ,0 as ewVat
+                from tb_statis_sales 
+                where 1 = 1
+                   and payment_code in ('ND','NA')
+                   <include refid="searchStatisSales"></include>  
+                group by payment_date
+                
+                union all
+                
+                select 
+                    <choose>
+                    <when test="searchDatetype != null and searchDatetype == 'day'">
+                        payment_date
+                    </when>
+                    <otherwise>
+                        date_format(payment_date, '%Y-%m') as paymentDate
+                    </otherwise>
+                    </choose>
+                    ,0 as ndCount
+                    ,0 as ndPayment
+                    ,0 as ndVat
+                    ,0 as ndAddPayment
+                    ,0 as ndTotalPrice
+                    ,count(*) as doCount
+                    ,IFNULL(sum(total_payment), 0) as doPayment
+                    ,IFNULL(sum(payment_vat), 0) as doVat
+                    ,IFNULL(sum(add_fees_price), 0) as doAddPayment
+                    ,IFNULL(sum(fees_total), 0) as doTotalPrice
+                    ,0 as ewCount
+                    ,0 as ewPayment
+                    ,0 as ewVat
+                from tb_statis_sales 
+                where 1 = 1
+                   and payment_code = 'DO'
+                   <include refid="searchStatisSales"></include>  
+                group by payment_date
+                
+                union all
+                
+                select 
+                    <choose>
+                    <when test="searchDatetype != null and searchDatetype == 'day'">
+                        payment_date
+                    </when>
+                    <otherwise>
+                        date_format(payment_date, '%Y-%m') as paymentDate
+                    </otherwise>
+                    </choose>
+                    ,0 as ndCount
+                    ,0 as ndPayment
+                    ,0 as ndVat
+                    ,0 as ndAddPayment
+                    ,0 as ndTotalPrice
+                    ,0 as doCount
+                    ,0 as doPayment
+                    ,0 as doVat
+                    ,0 as doAddPayment
+                    ,0 as doTotalPrice
+                    ,count(*) as ewCount
+                    ,IFNULL(sum(payment), 0) as ewPayment
+                    ,IFNULL(sum(payment_vat), 0) as ewVat
+                from tb_add_payment 
+                where 1 = 1
+                   and payment_code = 'EW'
+                   <include refid="searchStatisSales"></include>
+                group by payment_date
+            ) as t 
+            group by paymentDate
+          ) t1   
+          right outer join (
+            <choose>
+                <when test="searchDatetype != null and searchDatetype == 'day'">
+                    <include refid="dailyStatisDate"></include> 
+                </when>
+                <otherwise>
+                    <include refid="monthyStatisDate"></include> 
+                </otherwise>
+            </choose>
+          ) d on t1.paymentDate=d.strDate
+          order by strDate
+    </select>
+     
+     <!-- 
+        관리자 > 정산 > 매출원장 통계 검색 월
+     -->
+    <sql id="monthyStatisDate">     
+        select a.Date as strDate
+            from (
+                select date_format(#{searchDateStart} + INTERVAL (a.a + (10 * b.a)) month, '%Y-%m') as Date
+                from (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as a
+                cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as b
+            ) a
+        where a.Date between date_format(#{searchDateStart}, '%Y-%m') and date_format(#{searchDateEnd}, '%Y-%m')
+    </sql>
+    
+    <!-- 
+        관리자 > 정산 > 매출원장  통계 검색 일
+     -->
+    <sql id="dailyStatisDate">     
+        select a.Date as strDate
+            from (
+                select #{searchDateStart} + INTERVAL (a.a + (10 * b.a) + (100 * c.a) + (1000 * d.a) ) DAY as Date
+                from (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as a
+                cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as b
+                cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as c
+                cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as d
+            ) a
+        where a.Date between #{searchDateStart} and #{searchDateEnd}
+    </sql>
+    
+    
+    <!-- 
+        관리자 > 정산 > 손익통계 저장
+     -->
+    <insert id="insertStatisPayment" parameterType="String">
+        insert into tb_statis_payment (payment_date, courier_company, payment, rank_price, payment_vat, sale_price, sale_price_vat)
+            select #{nowDate} as payment_date
+                , code_id
+                , IFNULL(sum(payment), 0) payment
+                , IFNULL(sum(rank_price), 0) rank_price
+                , IFNULL(sum(payment_vat), 0) payment_vat
+                , IFNULL(sum(sale_price), 0) sale_price
+                , IFNULL(sum(sale_price_vat), 0) sale_price_vat
+            from (
+                select payment_date
+                    , master_code
+                    , courier_company
+                    , payment
+                    , rank_price
+                    , payment_vat
+                    , TRUNCATE((case 
+                        when payment_code = 'EW' then
+                            sale_price / 1.1
+                        else
+                            sale_price
+                        end), 0) as sale_price
+                    , TRUNCATE((case 
+                        when payment_code = 'EW' then
+                            (sale_price) - (sale_price / 1.1)
+                       /* when payment_code = 'ND' then
+                            (sale_price) * 0.1 */
+                        else
+                            0
+                        end), 0) as sale_price_vat
+                from (
+                    select date(b.payment_date) payment_date
+                        , a.master_code
+                        , b.payment_code
+                        , b.courier_company
+                        , b.payment
+                        , b.rank_price
+                        , b.payment_vat
+                        , IFNULL((case 
+                            when b.payment_code = 'EW' then
+                                (b.payment - (b.payment * 0.1))
+                            else
+                                FN_SHIPPING_SALE_PRICE((total_weight * 1000), buyer_country_code, courier_company, courier, date(payment_date)) 
+                            end), 0) sale_price
+                    from tb_delivery a 
+                        join tb_delivery_payment b on a.master_code=b.master_code
+                    where 1 = 1  
+                        and b.courier != '' 
+                        and b.pay_state = 'Y'
+                        and date(payment_date) = #{nowDate}
+                        
+                    union all
+                    
+                    select date(b.payment_date) payment_date  
+                        , a.local_code as master_code
+                        , b.payment_code
+                        , b.courier_company
+                        , b.payment
+                        , b.rank_price
+                        , b.payment_vat
+                        , (FN_SHIPPING_SALE_LOCAL(a.box_type, b.courier_company, b.courier, date(payment_date))) as sale_price
+                    from tb_delivery_local a 
+                        join tb_delivery_payment b on a.local_code=b.master_code
+                    where 1 = 1  
+                    and b.courier != '' 
+                    and b.pay_state = 'Y'
+                    and date(payment_date) = #{nowDate}
+                ) st
+            ) t 
+            right outer join (
+                select 
+                    code_id 
+                from tb_use_code where code_group = 'B010000'
+                    and code_id not in ('B010000')
+            ) uc on t.courier_company=uc.code_id
+            group by payment_date, code_id
+    </insert>
+    
+    <!-- 
+        관리자 > 정산 > 손익통계 저장 (신규)
+     -->
+    <insert id="insertStatisPaymentNew" parameterType="com.shopify.admin.statis.AdminStatisMakeData">
+        insert into tb_statis_payment_new (payment_date, courier_company, reg_date , total_payment , add_fees_price , payment_vat, sale_price, add_sale_price , sale_vat , fees_total , sale_total )
+             select #{nowDate} as payment_date
+                , code_id
+                , now()
+                , IFNULL(sum(total_payment), 0) total_payment 
+                , IFNULL(sum(add_fees_price), 0) add_fees_price 
+                , IFNULL(sum(payment_vat), 0) payment_vat
+                , IFNULL(sum(sale_price), 0) sale_price
+                , IFNULL(sum(add_sale_price), 0) add_sale_price 
+                , IFNULL(sum(sale_vat), 0) sale_vat 
+                , IFNULL(sum(fees_total), 0) fees_total 
+                , IFNULL(sum(sale_total), 0) sale_total
+            from (
+            select 
+                payment_date 
+                , courier_company
+                , total_payment 
+                , add_fees_price 
+                , payment_vat 
+                , sale_price 
+                , add_sale_price 
+                , sale_vat 
+                , fees_total 
+                , sale_total
+            from 
+            (
+               select date(s.payment_date) payment_date
+                    , d.courier_company
+                    , s.total_payment 
+                    , s.add_fees_price 
+                    , s.payment_vat 
+                    , s.sale_price 
+                    , s.add_sale_price 
+                    , s.sale_vat 
+                    , s.fees_total 
+                    , s.sale_total 
+                    from tb_statis_sales s
+                     join tb_delivery_payment d on d.master_code = s.master_code 
+                    where 1 = 1  
+                          <if test="masterCode != null and masterCode != '' ">
+                           and  d.master_code = #{masterCode}  
+                          </if>
+                          <if test="nowDate != null and nowDate != '' ">
+                           and date(d.payment_date) = #{nowDate}  
+                          </if>
+               )st
+            ) t 
+            right outer join (
+                select 
+                    code_id 
+                from tb_use_code where code_group = 'B010000'
+                    and code_id not in ('B010000')
+            ) uc on t.courier_company=uc.code_id
+            group by payment_date, code_id
+    </insert>
+    
+    <!-- 
+        관리자 > 정산 > 매출원장 검색 조건
+     -->
+    <sql id="searchStatisPayment">     
+        and payment_date between #{searchDateStart} and #{searchDateEnd}
+
+        <if test="searchCompany != null and searchCompany != ''"> 
+            and courier_company = #{searchCompany}
+        </if>     
+    </sql>
+    
+    <!-- 
+        관리자 > 정산 > 손익통계 리스트
+     -->
+     <select id="selectStatisPayment"  parameterType="com.shopify.admin.statis.AdminStatisData" resultType="com.shopify.admin.statis.AdminStatisData">
+        select 
+            strDate as paymentDate
+            , IFNULL(payment, 0) as payment
+            , IFNULL(paymentVat, 0) as paymentVat
+            , IFNULL(totalPayment, 0) as totalPayment
+            , IFNULL(salePrice, 0) as salePrice
+            , IFNULL(salePriceVat, 0) as salePriceVat
+            , IFNULL(totalSalePrice, 0) as totalSalePrice
+            , IFNULL(payment-salePrice, 0) as sumPrice
+            , IFNULL(paymentVat-salePriceVat, 0) as sumPriceVat
+            , IFNULL(totalPayment-totalSalePrice, 0) as sumTotalPrice
+        from (
+            select 
+                paymentDate
+                ,sum(payment) as payment
+                ,sum(payment_vat) as paymentVat
+                ,sum(total_payment) as totalPayment
+                ,sum(sale_price) as salePrice
+                ,sum(sale_price_vat) as salePriceVat
+                ,sum(total_sale_price) as totalSalePrice
+            from (
+                select  
+                    date_format(payment_date, '%Y-%m') as paymentDate
+<!--                     ,(payment - rank_price) payment -->
+                    ,payment
+                    ,payment_vat
+                    ,(payment + payment_vat - rank_price) as total_payment
+                    ,sale_price
+                    ,sale_price_vat
+                    ,(sale_price + sale_price_vat) as total_sale_price
+                from tb_statis_payment 
+                where 1 = 1 
+                    <include refid="searchStatisSales"></include>  
+            ) as t group by paymentDate
+        ) t1 
+        right outer join (
+            <include refid="monthyStatisDate"></include> 
+        ) d on t1.paymentDate=d.strDate
+        order by strDate
+    </select>
+    
+        <!-- 
+        관리자 > 정산 > 손익통계 리스트 (신규)
+     -->
+     <select id="selectStatisPaymentNew"  parameterType="com.shopify.admin.statis.AdminStatisData" resultType="com.shopify.admin.statis.AdminStatisData">
+        select 
+           strDate as paymentDate
+            , IFNULL(total_payment, 0) as total_payment
+            , IFNULL(add_fees_price, 0) as add_fees_price
+            , IFNULL(add_sale_price, 0) as add_sale_price
+            , IFNULL(payment_vat, 0) as payment_vat
+            , IFNULL(sale_price, 0) as sale_price
+            , IFNULL(sale_vat, 0) as sale_vat
+            , IFNULL(fees_total, 0) as fees_total
+            , IFNULL(sale_total, 0) as sale_total
+        from (
+            select 
+                paymentDate
+                ,sum(total_payment) as total_payment
+                ,sum(add_fees_price) as add_fees_price
+                ,sum(add_sale_price) as add_sale_price
+                ,sum(payment_vat) as payment_vat
+                ,sum(sale_price) as sale_price
+                ,sum(sale_vat) as sale_vat
+                ,sum(fees_total) as fees_total
+                ,sum(sale_total) as sale_total
+            from (
+                 select  
+                    date_format(payment_date, '%Y-%m') as paymentDate
+                    ,total_payment 
+                    ,add_fees_price 
+                    ,add_sale_price
+                    ,payment_vat
+                    ,sale_price 
+                    ,sale_vat
+                    ,fees_total 
+                    ,sale_total 
+                from tb_statis_payment_new 
+                where 1 = 1 
+                    <include refid="searchStatisSales"></include>  
+            ) as t group by paymentDate
+        ) t1 
+        right outer join (
+            <include refid="monthyStatisDate"></include> 
+        ) d on t1.paymentDate=d.strDate
+        order by strDate
+    </select>
+    
+    <!-- 매출원장 요약 보기 -->
+    <select id="selectStatisSalesReport"  parameterType="com.shopify.admin.statis.AdminStatisData" resultType="com.shopify.admin.statis.AdminStatisData">
+       select  
+        shop_name 
+        ,sum(payCount) as payCount
+        ,sum(realPayment) as real_payment
+        ,sum(calculCompanyPrice) as calculCompanyPrice
+        ,sum(calculSellerPrice) as calculSellerPrice
+        ,sum(calculCompanyCount) as calculCompanyCount
+        ,sum(calculSellerCount) as calculSellerCount
+      from 
+      (
+      select 
+             s.shop_name as shop_name
+             , count(p.payment) as payCount
+             , sum(total_payment) as realPayment
+             , 0 as calculCompanyPrice
+             , 0 as calculSellerPrice
+             , 0 as calculCompanyCount
+             , 0 as calculSellerCount
+        from tb_statis_sales st 
+           JOIN tb_delivery_payment as p ON p.master_code = st.master_code 
+           JOIN tb_delivery as d on d.master_code = p.master_code 
+           JOIN tb_shop as s on s.shop_idx = d.shop_idx     
+           WHERE 1=1 
+           AND d.state >= 'A020040'
+           group by s.shop_name
+       union all     
+       select 
+         s.shop_name as shop_name
+         , 0 as payCount
+         , 0 as realPayment
+         ,  sum(total_payment)  as calculCompanyPrice
+         , 0 as calculSellerPrice
+         , 0 as calculCompanyCount
+         , 0 as calculSellerCount
+        from tb_statis_sales st 
+           JOIN tb_delivery_payment as p ON p.master_code = st.master_code 
+           JOIN tb_delivery as d on d.master_code = p.master_code 
+           JOIN tb_shop as s on s.shop_idx = d.shop_idx     
+           WHERE 1=1 
+            AND d.state >= 'A020040'
+            AND company_calcul = true
+           group by s.shop_name
+       union all    
+       select 
+         s.shop_name as shop_name
+         , 0 as payCount
+         , 0 as realPayment
+         , 0 as calculCompanyPrice
+         , sum(total_payment)  as calculSellerPrice
+         , 0 as calculCompanyCount
+         , 0 as calculSellerCount
+        from tb_statis_sales st 
+           JOIN tb_delivery_payment as p ON p.master_code = st.master_code 
+           JOIN tb_delivery as d on d.master_code = p.master_code 
+           JOIN tb_shop as s on s.shop_idx = d.shop_idx     
+           WHERE 1=1 
+            AND d.state >= 'A020040'
+            AND seller_calcul = true
+           group by s.shop_name    
+       union all
+       select 
+         s.shop_name as shop_name
+         , 0 as payCount
+         , 0 as realPayment
+         , 0 as calculCompanyPrice
+         , 0  as calculSellerPrice
+         , count(d.master_code) as calculCompanyCount
+         , 0 as calculSellerCount
+        from tb_statis_sales st 
+           JOIN tb_delivery_payment as p ON p.master_code = st.master_code 
+           JOIN tb_delivery as d on d.master_code = p.master_code 
+           JOIN tb_shop as s on s.shop_idx = d.shop_idx     
+           WHERE 1=1 
+            AND d.state >= 'A020040'
+            AND company_calcul = true
+           group by s.shop_name      
+       union all    
+       select 
+        s.shop_name as shop_name
+         , 0 as payCount
+         , 0 as realPayment
+         , 0 as calculCompanyPrice
+         , 0  as calculSellerPrice
+         , 0 as calculCompanyCount
+         , count(d.master_code) as calculSellerCount
+        from tb_statis_sales st 
+           JOIN tb_delivery_payment as p ON p.master_code = st.master_code 
+           JOIN tb_delivery as d on d.master_code = p.master_code 
+           JOIN tb_shop as s on s.shop_idx = d.shop_idx     
+           WHERE 1=1 
+            AND d.state >= 'A020040'
+            AND seller_calcul = true
+           group by s.shop_name            
+      ) as t
+      group by shop_name
+    </select>
+    
+    <!-- 추가요금 계산: 공시가/매입가  (부피중량으로 계산 ) -->
+    <select id="selectStatisAddSalePrice"  parameterType="com.shopify.admin.statis.AdminStatisMakeData" resultType="com.shopify.admin.statis.AdminStatisMakeData">
+        select 
+            ROUND((tt.addPrice)-(tt.addPrice * tt.rankPercentage/100)) as addFeesPrice  
+            ,(tt.calsalesPrice - tt.sale_price) as addSalePrice 
+            , tt.courier_company
+            , tt.courier
+            , tt.payment_date
+        from(
+        select 
+              t.fees_price
+              ,(t.calfeesPrice - t.fees_price) as addPrice 
+              ,t.sale_price
+              ,t.calfeesPrice
+              ,t.calsalesPrice
+              ,t.courier_company
+              ,t.courier
+              ,t.payment_date
+              ,t.rankPercentage
+        from (
+        select 
+                tss.master_code 
+                ,s.email 
+                ,tss.total_weight 
+                ,IFNULL(tss.fees_price,0) as fees_price 
+                ,IFNULL(tss.sale_price,0) as sale_price 
+                ,tss.rank_price 
+                ,tss.total_payment 
+                , p.courier_company 
+                , p.courier
+                , p.payment_date
+                , tss.buyer_country_code 
+                , IFNULL(FN_SHIPPING_FEES_PRICE_STAT(#{volumeWeight}, tss.buyer_country_code , p.courier_company , p.courier , p.payment_date),0) as calfeesPrice
+                , IFNULL(FN_SHIPPING_SALE_PRICE_STAT(#{volumeWeight}, tss.buyer_country_code , p.courier_company , p.courier , p.payment_date),0) as calsalesPrice
+                , FN_DISCOUNT_COURIER(s.email, p.courier_company,p.courier ) as rankPercentage 
+                from 
+                  tb_statis_sales tss 
+                  JOIN tb_delivery_payment p on p.master_code = tss.master_code
+                  JOIN tb_delivery d on d.master_code = tss.master_code 
+                  JOIN tb_shop as s on s.shop_idx = d.shop_idx  
+                WHERE  
+                  tss.master_code = #{masterCode}
+                  limit 1
+            ) t
+           ) tt
+    </select>
+    
+    <!-- 매출원장 삭제: 추가요금 입력시  -->
+    <delete id="deleteStatisSales" parameterType="com.shopify.admin.statis.AdminStatisMakeData">
+        DELETE FROM tb_statis_sales WHERE 
+        <if test="masterCode != null and masterCode != '' ">
+            master_code = #{masterCode}  
+        </if>
+        <if test="nowDate != null and nowDate != '' ">
+            payment_date = #{nowDate}  
+        </if>
+        
+    </delete>
+   
+    <!-- 손익통계 -->
+    <delete id="deleteStatisPayment" parameterType="String">
+        DELETE FROM tb_statis_payment_new 
+        WHERE 1=1 
+          <if test="nowDate != null and nowDate != '' ">
+           and date(payment_date) = #{nowDate}  
+          </if>
+    </delete> 
+    
+    
+    <!-- 추가요금 -->
+    <delete id="deleteStatisAddPayment" parameterType="com.shopify.admin.statis.AdminStatisMakeData">
+        DELETE FROM tb_add_payment 
+        WHERE 1=1 
+         and payment_code in ('EW','SW')
+          <if test="masterCode != null and masterCode != '' ">
+           and  master_code = #{masterCode}  
+          </if>
+          <if test="nowDate != null and nowDate != '' ">
+           and date(payment_date) = #{nowDate}  
+          </if>
+    </delete>
+    
+    <!-- 추가요금 입력 : 공시가 -->
+    <insert id="insertAddFeesVolumePayment" parameterType="com.shopify.admin.statis.AdminStatisMakeData">
+        insert into tb_add_payment (master_code , payment_code , courier_company , courier , payment, payment_date , reg_date, add_charge_info )
+                    values (
+                            #{masterCode}, 
+                            'EW', 
+                            #{courierCompany}, 
+                            #{courier} , 
+                            #{addFeesPrice}, 
+                            #{paymentDate}, 
+                            now(), 
+                            '부피중량초과요금'
+                            )
+    </insert>
+    <!-- 추가요금 입력 : 매입가 -->
+    <insert id="insertAddSaleVolumePayment" parameterType="com.shopify.admin.statis.AdminStatisMakeData">
+        insert into tb_add_payment (master_code , payment_code , courier_company , courier , payment, payment_date , reg_date, add_charge_info )
+                    values (
+                            #{masterCode}, 
+                            'SW', 
+                            #{courierCompany}, 
+                            #{courier} , 
+                            #{addSalePrice}, 
+                            #{paymentDate}, 
+                            now(), 
+                            '부피중량초과요금'
+                            )
+    </insert>
+    
+    <!-- 부피무게 수정 -->
+     <update id="updateWeight" parameterType="com.shopify.admin.statis.AdminStatisMakeData" >
+        update tb_statis_sales
+           set 
+              volume_weight = #{weight}
+           where 
+              master_code = #{masterCode}
+     </update>
+    <!-- 매출원장 정산 업데이트  -->   
+    <update id="updateCalcul" parameterType="com.shopify.admin.statis.AdminStatisData" >
+        update tb_statis_sales
+            set 
+            <if test="calculType != null and calculType == 'COMPANY' ">
+                 company_calcul = if(company_calcul=TRUE, FALSE,TRUE)
+            </if>
+            <if test="calculType != null and calculType == 'SELLER' ">
+                seller_calcul = if(seller_calcul=TRUE, FALSE,TRUE)
+            </if>
+        WHERE 1=1
+            <if test="arrMasterCodeList != null and arrMasterCodeList != '' ">
+                AND master_code IN
+                <foreach collection="arrMasterCodeList" item="item" index="index" separator="," open="(" close=")">
+                    #{item,jdbcType=VARCHAR}
+                </foreach>
+            </if>
+    </update>
+    
+    <!-- 부피무게 엑셀 업로드 -->
+    <update id="updateVolumeWeightData" parameterType="java.util.Map" >
+       update tb_statis_sales
+         set volume_weight = #{weight}
+             ,company_calcul=1
+       where 
+          master_code = #{masterCode}
+    </update>
+        
+    <!-- 매출추가요금 상세 사유 보기  -->
+    <select id="selectStatisAddPriceDesc"  parameterType="com.shopify.admin.statis.AdminStatisRowData" resultType="com.shopify.admin.statis.AdminStatisRowData">
+     select payment_code 
+            , payment 
+            , reg_date 
+            , add_charge_info
+     from tb_add_payment 
+       where master_code = #{masterCode}
+             and payment_code = #{paymentCode}
+       ORDER BY reg_date desc   
+    </select>
+</mapper>

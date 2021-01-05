@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <property name="pattern" value="%d{yyyy-MM-dd HH:mm:ss} %15.15thread %-5level %-40.40c{36} %4L : %msg%n" />
+    <property name="logdir" value="/opt/tomcat/logs" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="shopify" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${logdir}/shopify.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${logdir}/shopify-%d{yyyy-MM-dd}.log
+            </fileNamePattern>
+            <maxHistory>360</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="order" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${logdir}/order.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${logdir}/order-%d{yyyy-MM-dd}.log
+            </fileNamePattern>
+            <maxHistory>360</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.shopify" level="DEBUG" additivity="true">
+        <appender-ref ref="shopify" />
+    </logger>
+
+    <logger name="com.shopify.order" level="DEBUG" additivity="true">
+        <appender-ref ref="order" />
+    </logger>
+    <logger name="com.shopify.shipment" level="DEBUG" additivity="true">
+        <appender-ref ref="order" />
+    </logger>
+
+    <logger name="com.shopify.admin.monitor" level="ERROR" additivity="true">
+        <appender-ref ref="STDOUT" />
+    </logger>
+    
+    <logger name="com.shopify.mapper.MonitorMapper" level="ERROR" additivity="true">
+        <appender-ref ref="STDOUT" />
+    </logger>
+    
+    <root>
+        <level value="INFO" />
+        <appender-ref ref="STDOUT" />
+    </root>
+
+</configuration>

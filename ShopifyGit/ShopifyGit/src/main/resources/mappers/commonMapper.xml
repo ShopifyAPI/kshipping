@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.CommonMapper">
+	<select id="listComponentData"  parameterType="java.util.Map" resultType="com.shopify.common.CommonData">
+        SELECT
+	          code_id AS codeId
+            , code_group AS codeGroup
+            , code_seq AS codeSeq
+            , code_kname AS codeKname
+            , code_ename AS codeEname
+<choose>
+    <when test="list.size == 1">
+        <foreach collection="list" item="item" index="index" >
+            <choose>
+                <when test="item.locale eq 'en'">
+            , code_ename AS codeName
+                </when>
+                <otherwise>
+            , code_kname AS codeName
+                </otherwise>
+		  </choose>
+        </foreach>
+    </when>
+</choose>
+            , code_etc AS codeEtc
+            , code_discript AS codeDiscript
+            , use_yn AS  useYn
+            , reg_date AS regDate
+        FROM tb_use_code
+        WHERE 1 = 1
+        <choose>
+            <when test="list.size != 0">
+                AND code_group IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.codeGroup}
+                </foreach>
+            </when>
+        </choose>
+          AND use_yn = 'Y'
+		  ORDER BY code_group , code_seq ASC
+    </select>
+    
+    
+    <select id="listComponentNationData"  parameterType="java.util.Map" resultType="com.shopify.common.CommonData">
+        SELECT
+              code_id AS codeId
+            , code_group AS codeGroup
+            , code_seq AS codeSeq
+            , code_kname AS codeKname
+            , code_ename AS codeEname
+            <choose>
+                <when test="locale eq 'en'">
+            , code_ename AS codeName
+                </when>
+                <otherwise>
+            , code_kname AS codeName
+                </otherwise>
+            </choose>
+
+            , code_etc AS codeEtc
+            , code_discript AS codeDiscript
+            , use_yn AS  useYn
+            , reg_date AS regDate
+        FROM tb_use_code
+        WHERE 1 = 1
+            AND code_group = #{codeGroup}
+            AND code_id not in (#{codeGroup})
+            AND use_yn = 'Y'
+          
+          <choose>
+                <when test="locale eq 'en'">
+                    ORDER BY code_ename , code_seq ASC
+                </when>
+                <otherwise>
+                    ORDER BY code_kname , code_seq ASC
+                </otherwise>
+            </choose>
+    </select>
+    
+    
+    
+    <select id="listCodeGroup" resultType="com.shopify.common.CommonData">
+		SELECT code_id
+    	      , code_etc
+    	 	  ,CONCAT(code_discript,'(',code_group,')') AS codeDiscript
+	      FROM tb_use_code
+	      WHERE code_seq = 0 AND code_id = code_group
+	     ORDER BY code_discript		  
+    </select>
+    
+    
+</mapper>

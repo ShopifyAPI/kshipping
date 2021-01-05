@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminNoticeMapper">
+	
+    <!-- 
+         admin > notice > 리스트 검색 퀴리(NOTICE)
+    -->
+    <sql id="searchNotice">
+        <if test="idx != null and idx != 0">
+            AND idx = #{idx}
+        </if>
+        <if test='searchType != null and searchType !="" and searchType != "D040000" '>
+            AND part =  #{searchType}
+        </if>
+        <if test="searchWord != null and searchWord != '' ">
+            AND content LIKE '%' #{searchWord} '%'
+        </if>
+    </sql>    
+
+    <select id="selectAllNotice"  parameterType="com.shopify.main.MainData" resultType="com.shopify.main.MainData">
+        SELECT
+             idx
+            ,flag_top AS flagTop
+            ,noti_type AS type 
+            ,title
+            ,FN_LOCALE_MESSAGE('D040000',part ,#{locale}) AS partName            
+            ,part AS partCode            
+            ,reg_admin AS writer
+            ,IF(content IS NULL,'',content) AS content
+            ,IF(content IS NULL,0, LENGTH(content)) AS contentLength
+            ,DATE_FORMAT(noti_from_date, '%Y-%m-%d') AS notiFromDate
+            ,DATE_FORMAT(noti_to_date, '%Y-%m-%d') AS notiToDate
+            ,deleted_yn AS deletedYn
+        FROM tb_notice
+        WHERE 1=1
+        <include refid="searchNotice"></include>
+        ORDER BY  flag_top ASC , noti_from_date DESC, deleted_yn ASC
+        <if test="currentPage != 0">
+            <if test="startRow neq totalPageNum"> 
+            LIMIT #{startRow}, #{pageSize}
+            </if>
+        </if>
+     </select>   
+        	
+  
+    <select id="selectAllNoticeCount" resultType="int" >
+		SELECT count(*) AS adminCount 
+		  FROM tb_notice 
+		  WHERE 1=1
+		<include refid="searchNotice"></include>
+	</select>
+
+    <select id="selectNoticeShow"  parameterType="com.shopify.admin.notice.AdminNoticeData" resultType="com.shopify.admin.notice.AdminNoticeData">
+        SELECT
+             idx
+            ,noti_type AS type
+            ,title
+            ,FN_LOCALE_MESSAGE('D040000',part ,#{locale}) AS partName            
+            ,part AS partCode            
+            ,reg_admin AS writer
+            ,noti_from_date AS notiFromDate
+            ,noti_to_date AS notiToDate
+            ,flag_top AS flagTop
+            ,content
+            ,if(content is null,'',content) AS content
+            ,IF(content IS NULL,0, LENGTH(content)) AS contentLength
+            ,DATE_FORMAT(reg_date, '%Y-%m-%d') AS regDate
+            ,IF(DATE_FORMAT(reg_date, '%Y-%m-%d') IS NULL ,'',up_date) AS editDate 
+        FROM tb_notice
+            WHERE 1 = 1
+            AND idx = #{idx}    
+    </select>
+    
+    <select id="selectNoticeShowFile"  parameterType="com.shopify.admin.notice.AdminNoticeData" resultType="com.shopify.admin.notice.AdminNoticeData">
+        SELECT
+        	  idx
+        	, origin_name AS file_name
+        	, file_url AS file_download_uri
+        	, file_size AS size
+        FROM tb_notice_file
+        WHERE 1 = 1
+        AND notice_idx = #{idx}
+        AND deleted_yn = 'N'    
+    </select>
+    
+    <insert id="insertNotice" parameterType="com.shopify.admin.notice.AdminNoticeData" useGeneratedKeys="true" keyProperty="idx">
+        INSERT INTO tb_notice (
+        	  part
+			, title
+			, reg_admin
+			, content
+			, reg_date
+			, flag_top
+			, noti_from_date
+			, noti_to_date                           
+		) VALUES (
+			  #{partCode}
+			, #{title}
+			, #{reg_admin}
+			, #{content}
+			, NOW()
+			, #{flagTop}
+			, #{notiFromDate}
+			, #{notiToDate}
+		)
+    </insert>
+    
+    <insert id="insertNoticeFile" parameterType="com.shopify.admin.notice.AdminNoticeData">
+		INSERT INTO tb_notice_file (
+			  notice_idx
+			, stored_name
+			, origin_name
+			, file_url
+			, file_size
+		) VALUES (
+			  ${noti_idx}
+			, #{realName}
+			, #{fileName}
+			, #{fileDownloadUri}
+			, ${size}
+		)
+    </insert>
+    
+    <update id="updateNotice" parameterType="com.shopify.admin.notice.AdminNoticeData">
+        UPDATE tb_notice 
+           SET  reg_admin = #{reg_admin}
+              ,  part = #{partCode}
+              , up_date = NOW()
+              , content = #{content}
+              , title = #{title}
+              , flag_top = #{flagTop}
+              , noti_from_date = #{notiFromDate}
+              , noti_to_date = #{notiToDate}        
+        WHERE idx = #{idx}
+    </update>
+   
+    <delete id="deleteNotice" parameterType="String">
+        UPDATE tb_notice SET deleted_yn = 'N' WHERE idx = #{idx}
+    </delete>
+   
+    <select id="selectAttachedFileName" parameterType="String" resultType="String">
+    	SELECT origin_name
+    	FROM tb_notice_file
+    	WHERE (1=1)
+    	AND stored_name = #{stored_name}
+    </select>
+    
+    <delete id="deleteFile" parameterType="String">
+        UPDATE tb_notice_file SET deleted_yn = 'Y' WHERE idx = #{idx}
+    </delete>
+   
+</mapper>

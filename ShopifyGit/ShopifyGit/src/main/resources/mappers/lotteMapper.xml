@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.LotteMapper">
+
+
+    <select id="selectLotteDelivery" parameterType="String" resultType="com.shopify.shipment.ShipmentData">
+		SELECT B.master_code
+			, OL.order_code
+			, OL.order_name
+			, B.seller_name
+			, B.seller_phone
+			, B.seller_province
+			, B.seller_city
+			, B.seller_zip_code
+			, B.seller_addr1
+			, B.seller_addr2
+			, IFNULL(B.buyer_firstname,'')      as buyerFirstname
+			, IFNULL(B.buyer_lastname,'')       as buyerLastname
+			, IFNULL(B.buyer_phone,'')          as buyerPhone
+			, B.buyer_province
+			, B.buyer_city
+			, B.buyer_zip_code
+			, B.buyer_addr1
+			, B.buyer_addr2
+			, B.box_type
+		FROM tb_delivery as B
+		join tb_delivery_order O on B.master_code = O.master_code 
+		join tb_order_list OL on O.order_code = OL.order_code and B.shop_idx=OL.shop_idx
+		WHERE B.master_code = #{masterCode}
+    </select>
+
+    <select id="selectLotteDeliverySku" parameterType="String" resultType="String">
+		SELECT  goods
+		FROM tb_delivery_sku
+		WHERE master_code = #{masterCode}
+		ORDER BY goods
+    </select>
+
+    <select id="selectDeliveryLotteList" parameterType="java.util.List" resultType="com.shopify.api.lotte.delivery.LotteDeliveryData">
+    	SELECT
+    		'101000' as jobCustCd,
+			'01' as ustRtgSctCd,
+			'1' as ordSct,
+			'03' AS fareSctCd,
+			td.master_code AS ordNo,
+			td.master_code AS invNo,
+			td.master_code AS orglInvNo,
+			td.seller_name AS snperNm,
+			td.seller_phone AS snperTel,
+			td.seller_phone AS snperCpno,
+			td.seller_zip_code AS snperZipcd,
+			CONCAT(td.seller_addr1, " ", td.seller_addr2) AS snperAdr,
+			td.buyer_firstname AS acperNm2,
+			td.buyer_lastname AS acperNm1,
+			td.buyer_phone AS acperTel,
+			td.buyer_phone AS acperCpno,
+			td.buyer_zip_code AS acperZipcd,
+			CONCAT(td.buyer_addr1, " ", td.buyer_addr2) AS acperAdr,
+			td.box_type AS boxTypCd,
+			tds.goods AS gdsNm,
+			'' AS dlvMsgCont,
+			'' AS cusMsgCont,
+			'' AS pickReqYmd,
+			'' AS bdpkSctCd,
+			'' AS bdpkKey,
+			'' AS bdpkRpnSeq
+		FROM tb_delivery td
+		INNER JOIN tb_delivery_sku tds ON td.master_code = tds.master_code
+		WHERE 1=1
+        <choose>
+            <when test="list.size != 0">
+                AND td.master_code IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.masterCode}
+                </foreach>
+            </when>
+        </choose>
+        
+        ORDER BY td.master_code ASC
+    </select>
+    
+    
+       <!-- 판토 주문 정보 업데이트 A020020-->
+    <update id="updateOrderLotte" parameterType="Map">
+        UPDATE tb_delivery SET
+            up_date = now()
+            , state= FN_GET_LOTTE_TO_DELIVERYCD(#{state})
+            , state_group= #{stateGrop}
+        WHERE master_code=#{ordNo}
+    </update>
+
+
+	 <!--  
+        배송 > 롯데 API 연동 > 배송 상태 업데이트
+    -->
+    <update id="updateDeliveryState" parameterType="Map">
+        UPDATE tb_delivery SET state = #{stateCode}
+        where 1 = 1 
+            and master_code in 
+            <foreach collection="masterCodeList" item="item" index="index" separator="," open="(" close=")">
+                #{item,jdbcType=VARCHAR}
+            </foreach>
+    </update>
+    
+    <insert id="insertLotteApiReceive" parameterType="com.shopify.api.lotte.delivery.LotteDeliveryData">
+        INSERT INTO tb_lotte_delivery_api_receive 
+                            (master_code
+                            ,param_json
+							
+							,create_date
+                            )
+                            VALUES 
+                                (#{masterCode}
+                                ,#{apiParamJson}
+								
+								,now()
+                                )
+         ON DUPLICATE KEY UPDATE  master_code = #{ordNo}
+    </insert>
+    
+    <update id="updateLotteApiReceiveReturn" parameterType="com.shopify.api.lotte.delivery.LotteDeliveryData">
+    	UPDATE tb_lotte_delivery_api_receive
+    	SET return_json = {returnJson}, update_date = now()
+    	WHERE 1 = 1
+    		and master_code in
+    		 <foreach collection="masterCodeList" item="item" index="index" separator="," open="(" close=")">
+                #{item,jdbcType=VARCHAR}
+            </foreach>
+    </update>
+    
+    <insert id="insertLotteAddress" parameterType="com.shopify.api.lotte.delivery.LotteAddressResultData">
+		insert into tb_lotte_address (
+			master_code
+			,area_no
+			,zip_no
+			,filt_cd
+			,tml_cd
+			,tml_nm
+			,city_gun_gu
+			,dong
+			,brnshp_nm
+			,brnshp_cd
+			,bld_annm
+			,emp_nm
+			,lgtd
+			,lttd
+			,air_fare
+			,ship_fare
+		) values (
+			#{masterCode}
+			,#{areaNo}
+			,#{zipNo}
+			,#{filtCd}
+			,#{tmlCd}
+			,#{tmlNm}
+			,#{cityGunGu}
+			,#{dong}
+			,#{brnshpNm}
+			,#{brnshpCd}
+			,#{bldAnnm}
+			,#{empNm}
+			,#{lgtd}
+			,#{lttd}
+			,#{airFare}
+			,#{shipFare}
+		) ON DUPLICATE KEY UPDATE
+			area_no = #{areaNo}
+			,zip_no = #{zipNo}
+			,filt_cd = #{filtCd}
+			,tml_cd = #{tmlCd}
+			,tml_nm = #{tmlNm}
+			,city_gun_gu = #{cityGunGu}
+			,dong = #{dong}
+			,brnshp_nm = #{brnshpNm}
+			,brnshp_cd = #{brnshpCd}
+			,bld_annm = #{bldAnnm}
+			,emp_nm = #{empNm}
+			,lgtd = #{lgtd}
+			,lttd = #{lttd}
+			,air_fare = #{airFare}
+			,ship_fare = #{shipFare}
+	</insert>
+    
+    
+    <insert id="insertLotteInvnoGenerator" parameterType="com.shopify.api.lotte.delivery.LotteInvnoData">
+		insert into tb_lotte_invno_generator (
+			master_code
+		) values (
+			#{masterCode}
+		)
+        <selectKey  keyProperty="invNo" resultType="long">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+	</insert>
+    
+    <select id="selectLotteInvnoGenerator" resultType="com.shopify.api.lotte.delivery.LotteInvnoData">
+        SELECT MAX(id) as invNo
+        FROM  tb_lotte_invno_generator 
+	</select>
+    
+    <insert id="insertLotteWaybill" parameterType="com.shopify.api.lotte.delivery.LotteDeliveryData">
+		insert into tb_lotte_waybill (
+			master_code
+			, order_code
+			, order_name
+			, inv_no
+			, orgl_inv_no
+			, job_cust_cd
+			, ust_rtg_sct_cd
+			, ord_sct
+			, fare_sct_cd
+			, snper_nm
+			, snper_tel
+			, snper_cpno
+			, snper_zipcd
+			, snper_adr
+			, acper_nm
+			, acper_tel
+			, acper_cpno
+			, acper_zipcd
+			, acper_adr
+			, box_typ_cd
+			, gds_nm
+			, gds_names
+			, dlv_msg_cont
+			, cus_msg_cont
+			, pick_req_ymd
+			, bdpk_sct_cd
+			, bdpk_key
+			, bdpk_rpn_seq
+		) values (
+			#{masterCode}
+			, #{orderCode}
+			, #{orderName}
+			, #{invNo}
+			, #{orglInvNo}
+			, #{jobCustCd}
+			, #{ustRtgSctCd}
+			, #{ordSct}
+			, #{fareSctCd}
+			, #{snperNm}
+			, #{snperTel}
+			, #{snperCpno}
+			, #{snperZipcd}
+			, #{snperAdr}
+			, #{acperNm}
+			, #{acperTel}
+			, #{acperCpno}
+			, #{acperZipcd}
+			, #{acperAdr}
+			, #{boxTypCd}
+			, #{gdsNm}
+			, #{gdsNames}
+			, #{dlvMsgCont}
+			, #{cusMsgCont}
+			, #{pickReqYmd}
+			, #{bdpkSctCd}
+			, #{bdpkKey}
+			, #{bdpkRpnSeq}
+		) ON DUPLICATE KEY UPDATE
+			order_code    = #{orderCode}
+			, order_name    = #{orderName}
+			, inv_no         = #{invNo}
+			, orgl_inv_no    = #{orglInvNo}
+			, job_cust_cd    = #{jobCustCd}
+			, ust_rtg_sct_cd = #{ustRtgSctCd}
+			, ord_sct        = #{ordSct}
+			, fare_sct_cd    = #{fareSctCd}
+			, snper_nm       = #{snperNm}
+			, snper_tel      = #{snperTel}
+			, snper_cpno     = #{snperCpno}
+			, snper_zipcd    = #{snperZipcd}
+			, snper_adr      = #{snperAdr}
+			, acper_nm       = #{acperNm}
+			, acper_tel      = #{acperTel}
+			, acper_cpno     = #{acperCpno}
+			, acper_zipcd    = #{acperZipcd}
+			, acper_adr      = #{acperAdr}
+			, box_typ_cd     = #{boxTypCd}
+			, gds_nm         = #{gdsNm}
+			, gds_names      = #{gdsNames}
+			, dlv_msg_cont   = #{dlvMsgCont}
+			, cus_msg_cont   = #{cusMsgCont}
+			, pick_req_ymd   = #{pickReqYmd}
+			, bdpk_sct_cd    = #{bdpkSctCd}
+			, bdpk_key       = #{bdpkKey}
+			, bdpk_rpn_seq   = #{bdpkRpnSeq}
+	</insert>
+    
+       <select id="selectLotteAddress" parameterType="String"  resultType="com.shopify.api.lotte.delivery.LotteAddressResultData">
+        select master_code
+            ,area_no
+            ,zip_no
+            ,filt_cd
+            ,tml_cd
+            ,tml_nm
+            ,city_gun_gu
+            ,dong
+            ,brnshp_nm
+            ,brnshp_cd
+            ,bld_annm
+            ,emp_nm
+            ,lgtd
+            ,lttd
+            ,air_fare
+            ,ship_fare
+        from tb_lotte_address
+        where master_code in 
+		<foreach collection="array" item="item" index="index" separator="," open="(" close=")">
+		    #{item,jdbcType=VARCHAR}
+		</foreach>
+    </select>
+    
+      <select id="selectLotteWaybill" parameterType="String" resultType="com.shopify.api.lotte.delivery.LotteDeliveryData">
+        select master_code
+            , order_code
+            , order_name
+            , inv_no
+            , orgl_inv_no
+            , job_cust_cd
+            , ust_rtg_sct_cd
+            , ord_sct
+            , fare_sct_cd
+            , snper_nm
+            , snper_tel
+            , snper_cpno
+            , snper_zipcd
+            , snper_adr
+            , acper_nm
+            , acper_tel
+            , acper_cpno
+            , acper_zipcd
+            , acper_adr
+            , box_typ_cd
+            , gds_nm
+            , gds_names
+            , dlv_msg_cont
+            , cus_msg_cont
+            , pick_req_ymd
+            , bdpk_sct_cd
+            , bdpk_key
+            , bdpk_rpn_seq
+        from tb_lotte_waybill
+          where master_code in 
+        <foreach collection="array" item="item" index="index" separator="," open="(" close=")">
+            #{item,jdbcType=VARCHAR}
+        </foreach>
+    </select>
+</mapper>

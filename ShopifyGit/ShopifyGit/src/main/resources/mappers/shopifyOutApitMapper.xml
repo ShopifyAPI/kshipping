@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.ShopifyOutApiMapper">
+    <!-- 
+         캐리어 서비스 select
+    -->
+    <select id="selectCarrier" parameterType="com.shopify.api.ShopifyOutApiDataCarrier" resultType="com.shopify.api.ShopifyOutApiDataCarrier">     
+        select 
+			comCode, comName, code, codeName, zone, weight, price, minDeliveryDate, maxDeliveryDate, code_seq, comSeq
+		    from (
+			select a.id as comCode
+			    , FN_LOCALE_MESSAGE('B040000',a.id ,#{localLocale}) as comName
+			    , b.code_id as code
+			    , FN_LOCALE_MESSAGE(b.code_group, b.code_id ,#{localLocale}) as codeName
+			    , a.zone			               
+			    , a.weight
+			    , (a.price - (a.price * FN_DISCOUNT_PRICE(#{email},a.id,a.code) * 0.01)) * 100  as price
+			    , b.code_seq 
+			    , sc.min_delivery_date as minDeliveryDate
+			    , sc.max_delivery_date as maxDeliveryDate
+			    , (select code_seq from tb_use_code where code_id = a.id) as comSeq
+       from tb_shipping_fees a 
+            join tb_shipping_zone sb on a.zone=sb.zone and sb.service_code=a.code
+            join tb_shipping_company sc on sc.id=a.id and sc.code = a.code
+            join tb_use_code b on b.code_id =a.courier_id 
+            join tb_use_code bc on bc.code_id =a.id 
+        where  a.use_yn='Y'
+            and b.use_yn ='Y'
+            and sc.use_yn ='Y'
+           and sb.nation_code=#{locale}
+            and a.start_date &lt;= CURDATE()
+            and a.end_date &gt;= CURDATE()
+            and a.weight &gt;= (case when sc.volumetic = 'Y' and sc.divisor = '6' then #{volumeWeightSix}
+            						 when sc.volumetic = 'Y' and sc.divisor = '5' then #{volumeWeightFive}
+            			else #{weight} end)   
+			group by        a.id, b.code_id, a.code, a.zone , sc.min_delivery_date, sc.max_delivery_date, b.code_seq, bc.code_seq
+		) T order by code_seq, comSeq
+	
+
+    </select>
+    <select id="selectEmailFromDomain" parameterType="String" resultType="com.shopify.shop.ShopData">     
+		select  email,
+				shop_idx 			as shopIdx
+		 from tb_shop
+        where domain = #{domain}
+        and active_yn = 'Y'
+        and use_yn = 'Y'
+        
+    </select>
+       
+    <!-- 
+         캐리어 서비스 select count
+    -->
+    <select id="selectCarrierCount" parameterType="com.shopify.api.ShopifyOutApiDataCarrier" resultType="com.shopify.api.ShopifyOutApiDataCarrier">
+        select 
+			count(id) as carrierCnt
+		from tb_shopify_api_carrier
+		where active = 'true'
+		and callback_url = #{callbackUrl} 
+    </select>
+
+    <update id="updateCarrier" parameterType="com.shopify.api.ShopifyOutApiDataCarrier">
+        update tb_shopify_api_carrier
+        set name = #{name}
+			,active = #{active}
+			,format = 'json'
+			,callback_url = #{callbackUrl}
+        WHERE id = #{id}
+    </update>
+    
+    <update id="deleteCarrier" parameterType="com.shopify.api.ShopifyOutApiDataCarrier">
+        delete from tb_shopify_api_carrier
+        WHERE id = #{id}
+    </update>
+    
+    <insert id="insertCarrier" parameterType="com.shopify.api.ShopifyOutApiDataCarrier">
+        INSERT INTO tb_shopify_api_carrier  
+                            (id
+                                ,name
+                                ,active
+                                ,format
+                                ,callback_url
+                            )
+                            VALUES 
+                                (#{id}
+                                 ,#{name}
+                                 ,#{active}
+                                 ,#{format}
+                                 ,#{callbackUrl}
+                                )
+    </insert>
+</mapper>
+

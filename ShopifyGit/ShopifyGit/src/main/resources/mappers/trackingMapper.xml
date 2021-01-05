@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.TrackingMapper">
+    <!-- 
+         배송 > 배송리스트 검색 조건
+    -->
+    <sql id="searchTracking">
+        <if test="email != null and email != ''">
+            AND A.email = #{email}
+        </if>
+        
+        <if test="shopIdx != null and shopIdx != 0">
+            AND A.shop_idx = #{shopIdx}
+        </if>
+        <if test="masterCode != null and masterCode != ''">
+            AND B.master_code = #{masterCode}
+        </if>
+        
+        <if test="searchState != null and searchState != ''"> 
+            AND B.state = #{searchState}
+        </if>
+        
+        <choose>
+            <when test="searchDateEnd != null and searchDateEnd != ''">
+                <if test="searchDateStart != null and searchDateStart != ''">
+                    AND date_format(B.reg_date, '%Y-%m-%d') between #{searchDateStart} and #{searchDateEnd}
+                </if>
+            </when>
+            <otherwise>
+                <if test="searchDateStart != null and searchDateStart != ''">
+                    AND date_format(B.reg_date, '%Y-%m-%d') &gt;= #{searchDateStart} 
+                </if>
+            </otherwise>
+        </choose>
+        
+        <if test="searchWord != null and searchWord != ''"> 
+            <choose>
+                <when test="searchType == 'phone'">
+                	 AND (B.buyer_phone = #{searchWord})
+                </when>
+                <when test="searchType == 'name'">
+                     AND (B.buyer_firstname = #{searchWord} OR B.buyer_lastname = #{searchWord} OR CONCAT(B.buyer_firstname,' ',B.buyer_lastname) = #{searchWord}) 
+                </when>
+                <when test="searchType == 'goods'">
+                     AND ( OL.order_idx in (select order_idx 
+                                                   from tb_order_detail 
+                                                   where order_idx = OL.order_idx 
+                                                   and goods LIKE '%' #{searchWord} '%') )
+                </when>
+                <when test="searchType == 'orderCode'">
+                     AND (OL.order_code LIKE CONCAT('%', #{searchWord}, '%'))
+                </when>
+                <when test="searchType == 'orderName'">
+                     AND (OL.order_name = #{searchWord})
+                </when>
+                <when test="searchType == 'shopId'">
+                     AND (A.shop_id LIKE CONCAT('%', #{searchWord}, '%'))
+                </when>
+                <when test="searchType == 'invoice'">
+                     AND (P.invoice LIKE CONCAT('%', #{searchWord}, '%'))
+                </when>
+                <when test="searchType == 'courier'">
+                    AND P.courier in (select code_id
+                                            from tb_use_code 
+                                            where (code_kname LIKE '%' #{searchWord} '%' or code_ename LIKE '%' #{searchWord} '%')
+                                            AND code_group = 'B020000'
+                                            )
+                </when>
+            </choose>
+        </if> 
+    </sql>
+    
+    <!-- 
+         배송 > 배송리스트 count
+    -->
+    <select id="selectTrackingCount" parameterType="com.shopify.tracking.TrackingData" resultType="int">
+        SELECT count(*) AS trackingCount 
+        FROM tb_shop as A join tb_delivery as B        on A.shop_idx = B.shop_idx
+        join tb_delivery_order O                                    on B.master_code = O.master_code 
+        join tb_order_list OL                                         on O.order_code = OL.order_code and A.shop_idx=OL.shop_idx
+        LEFT OUTER JOIN tb_delivery_payment as P         on B.master_code = P.master_code 
+        join tb_pay_info PA                            on O.master_code = PA.master_code         
+        LEFT JOIN tb_use_code CD ON B.state_group=CD.code_group AND B.state=CD.code_id
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N') 
+        AND B.state_group = 'A020000'
+        <![CDATA[ AND CD.code_etc <> '' ]]>
+        <include refid="searchTracking"></include>
+        <if test="courierCompany != null and courierCompany != ''">
+        AND P.courier_company = #{courierCompany}
+        </if>
+        <if test="masterCode != null and masterCode != ''">
+            AND B.master_code = #{masterCode}
+        </if>
+        <if test="masterCodeList != null and masterCodeList != '' ">
+            AND B.master_code IN
+            <foreach collection="masterCodeList" item="item" index="index" separator="," open="(" close=")">
+                #{item,jdbcType=VARCHAR}
+            </foreach>
+        </if>
+    </select>
+    
+    <!-- 
+         배송 > 배송리스트 select
+    -->
+    <select id="selectTracking" parameterType="com.shopify.tracking.TrackingData" resultType="com.shopify.tracking.TrackingData">
+        SELECT A.shop_name         as shopName
+            , OL.order_name         as orderName
+            , B.master_code        as masterCode
+            , IFNULL(PA.pay_method,'')    as payMethod
+            , B.shop_idx                  as shopIdx
+            , B.combine_code           as combineCode
+            , B.seller_name              as sellerName
+            , B.seller_phone             as sellerPhone 
+            , B.seller_country_code   as sellerCountryCode
+            , B.seller_country           as sellerCountry
+            , B.seller_city                as sellerCity
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1             as sellerAddr1
+            , B.seller_addr2             as sellerAddr2
+            , IFNULL(B.buyer_firstname,'')        as buyerFirstname
+            , IFNULL(B.buyer_lastname,'')        as buyerLastname
+            , IFNULL(B.buyer_phone,'')            as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code   as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city                as buyerCity
+            , B.buyer_province         as buyerProvince
+            , B.buyer_zip_code        as buyerZipCode 
+            , B.buyer_addr1            as buyerAddr1
+            , B.buyer_addr2            as buyerAddr2
+            , B.box_length              as boxLength
+            , B.box_width               as boxWidth
+            , B.box_height              as boxHeight
+            , B.box_unit                 as boxUnit
+            , B.box_weight             as boxWeight
+            , B.weight_unit            as weightUnit
+            , B.state
+            , B.state_up_date as stateDate
+            , B.reg_date                as regDate
+            , P.invoice       
+            ,(case when P.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', P.courier, #{locale})
+                   when P.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', P.courier, #{locale})
+                   else '' end) as courier
+            , (select max(goods) from tb_order_detail where order_idx = OL.order_idx) as goods
+            , (select count(goods)-1 from tb_order_detail where order_idx = OL.order_idx)  as goodsCnt
+            , OL.order_code            as orderCode
+			, OL.order_date as orderDate
+            ,pay_state                   as payState
+            ,FN_LOCALE_MESSAGE('A020000', B.state, #{locale}) as stateStr
+            ,(case when B.state = 'A020060' then ' deliver2'
+                   when B.state = 'A020070' then ' deliver2'
+                   when B.state = 'A020080' then ' deliver2'
+                   when B.state = 'A020090' then ' deliver2'
+                   when B.state = 'A020099' then ' deliver2'
+              else ' paym2' end ) as stateStrCss
+            ,(P.payment * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)  as rankPrice
+            ,P.payment
+            ,P.rank_price
+            ,IFNULL((select max(local_code) from tb_delivery_local_data where master_code=B.master_code), '') localCode
+            , (select customer_name from tb_order_detail where order_idx=OL.order_idx limit 1) customerName
+            , P.courier_company
+        FROM tb_shop as A join tb_delivery as B        on A.shop_idx = B.shop_idx
+        join tb_delivery_order O                       on B.master_code = O.master_code 
+        join tb_order_list OL                          on O.order_code = OL.order_code and A.shop_idx=OL.shop_idx
+        LEFT OUTER JOIN tb_delivery_payment as P       on B.master_code = P.master_code  
+        join tb_pay_info PA                            on O.master_code = PA.master_code 
+        LEFT JOIN tb_use_code CD ON B.state_group=CD.code_group AND B.state=CD.code_id
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N')
+        AND B.state_group = 'A020000'
+        <![CDATA[ AND CD.code_etc <> '' ]]>
+        <include refid="searchTracking"></include>
+        
+        ORDER BY B.state, B.reg_date DESC
+        <if test="currentPage != 0">
+            <if test="startRow neq totalPageNum">
+            LIMIT #{startRow}, #{pageSize}
+            </if>
+        </if>
+    </select>
+    
+</mapper>
+

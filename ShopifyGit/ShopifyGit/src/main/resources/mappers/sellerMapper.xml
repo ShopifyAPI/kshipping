@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.SellerMapper">
+	<insert id="insertSeller" parameterType="com.shopify.seller.SellerData">
+		INSERT INTO tb_seller  
+							(
+							email
+							,email_verified
+							,first_name
+							,last_name
+							,passwd
+							,phone_number
+							,company
+							,company_ename
+							,use_yn
+							)
+							VALUES 
+						        (
+						        #{email}
+								,#{emailVerified}
+								,#{firstName}
+								,#{lastName}
+								,#{passwd}
+								,#{phoneNumber}
+								,#{company}
+								,#{companyEname}
+								,#{useYn}
+						        )
+	</insert>
+    
+	<update id="updateSeller" parameterType="com.shopify.seller.SellerData">
+		UPDATE tb_seller 
+		SET 
+			email_verified = #{emailVerified}
+			<if test='passwd neq null and passwd != ""'>
+			,passwd = #{passwd}
+			</if>
+			,phone_number = #{phoneNumber}
+			,company = #{company}
+			,company_ename = #{companyEname}
+			,use_yn = #{useYn}
+		WHERE email = #{email}
+	</update>
+	
+	<update id="updateSellerPasswd" parameterType="com.shopify.seller.SellerData">
+		UPDATE tb_seller 
+		SET 
+			find_auth= #{findAuth}
+			<if test='passwd neq null and passwd != ""'>
+			,email_verified = "Y"
+			,passwd = #{passwd}
+			</if>
+		WHERE email = #{email}
+	</update>
+	
+    <select id="selectSellerPasswdCount"  parameterType="com.shopify.seller.SellerData" resultType="int">
+        SELECT
+        	count(email) as cnt
+        FROM tb_seller
+        WHERE email = #{email}
+    </select>
+    
+    <select id="selectSellerCount"  parameterType="com.shopify.seller.SellerData" resultType="int">
+        SELECT
+        	count(email) as cnt
+        FROM tb_seller
+        WHERE email = #{email}
+    </select>
+    
+    <select id="selectSeller"  parameterType="com.shopify.seller.SellerData" resultType="com.shopify.seller.SellerData">
+    <![CDATA[  
+       SELECT
+        	s.email
+			,s.seller_id 				as sellerId
+			,s.email_verified		as emailVerified
+			,s.first_name				as firstName
+			,s.last_name				as lastName
+			,s.passwd
+			,s.phone_number		as phoneNumber
+			,s.company
+			,s.company_ename		as companyEname
+			,s.company_num		as companyNum
+			,s.rank_id					as rankId
+			,s.use_yn					as useYn
+			,s.reg_date				as regDate
+			,s.privatechk       as privatechk
+			,(select  a.code_etc from tb_use_code a join tb_seller_rank b on a.code_id=b.discount 
+			     where b.rank_id = 'E010010' AND b.start_date <= DATE_FORMAT(now(),'%Y-%m-%d') ORDER BY b.idx DESC limit 1 ) as rankRate
+        FROM tb_seller as s
+        WHERE s.email = #{email}
+     ]]>   
+    </select>
+    
+</mapper>

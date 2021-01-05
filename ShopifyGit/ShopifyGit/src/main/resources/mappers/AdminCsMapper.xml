@@ -1,0 +1,1790 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminCsMapper">
+    
+    <!-- 
+        CS 관리> 검색 조건 (NEW)
+    -->
+    <sql id="searchCsDelivery">
+        and o.hide_yn = 'N' 
+        and ol.hide_yn = 'Y' 
+        and ol.order_idx in (
+                select order_idx from tb_order_detail where order_idx = ol.order_idx and del_yn = 'N'
+            ) 
+        <if test="paymentCode != null and paymentCode != ''">
+            and p.payment_code = #{paymentCode}
+        </if>
+        
+        <if test="stateGroup != null and stateGroup != ''">
+            and b.state_group = #{stateGroup}
+        </if>
+        
+        <choose>
+            <when test="searchDateEnd != null and searchDateEnd != ''">
+                <if test="searchDateStart != null and searchDateStart != ''">
+                    and date_format(b.reg_date, '%Y-%m-%d') between #{searchDateStart} and #{searchDateEnd}
+                </if>
+            </when>
+            <otherwise>
+                <if test="searchDateStart != null and searchDateStart != ''">
+                    and date_format(b.reg_date, '%Y-%m-%d') &gt;= #{searchDateStart} 
+                </if>
+            </otherwise>
+        </choose>
+        
+        <if test="searchState != null and searchState != ''">
+            and b.state = #{searchState}
+            and p.payment_code in ('NA','ND','DO')
+        </if>
+        
+        <if test="searchPayment != null and searchPayment != ''">
+            and p.pay_state = #{searchPayment}
+        </if>
+        
+        <if test="searchWord != null and searchWord != ''"> 
+            <choose>
+                <when test="searchType == 'orderCode'">
+                    and ol.order_code like '%' #{searchWord} '%'
+                </when>
+                <when test="searchType == 'name'">
+                    and (b.buyer_firstname = #{searchWordAese} or b.buyer_lastname = #{searchWordAese} 
+                        or concat(b.buyer_firstname,' ',b.buyer_lastname) = #{searchWordAese}) 
+                </when>
+                <when test="searchType == 'goods'">
+                    and ol.order_idx in (
+                            select order_idx from tb_order_detail where order_idx = ol.order_idx and goods like '%' #{searchWord} '%'
+                        ) 
+                </when>
+                
+                <when test="searchType == 'invoice'">
+                    and (b.master_code like '%' #{searchWord} '%' or b.hbl_no like '%' #{searchWord} '%')  
+                </when>
+                <when test="searchType == 'shopName'">
+                    and (a.shop_name like '%' #{searchWord} '%' or a.domain LIKE '%' #{searchWord} '%') 
+                </when>
+                <when test="searchType == 'orderName'">
+                    and (ol.order_code like '%' #{searchWord} '%' or ol.order_name LIKE '%' #{searchWord} '%')  
+                </when>
+            </choose>
+        </if>
+    </sql>
+    
+    <!-- 
+        CS 관리> 리스트 카운트 (NEW)
+    -->
+    <select id="selectAdminCsDeliveryListCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+	    select 
+		    count(*)
+		from tb_shop as a 
+		    join tb_delivery as b on a.shop_idx = b.shop_idx
+		    join tb_delivery_order o on b.master_code = o.master_code
+		    join tb_order_list ol on o.order_code = ol.order_code and a.shop_idx = ol.shop_idx 
+		    join tb_delivery_payment as p on b.master_code = p.master_code
+		    
+		where 1 = 1 
+		     <include refid="searchCsDelivery"></include>
+    </select>
+    
+    <!-- 
+        CS 관리> 리스트 (NEW)
+    -->
+    <!--   
+    <select id="selectAdminCsDeliveryList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        select 
+            b.master_code
+			, a.shop_name
+			, b.shop_idx
+			, b.combine_code
+			, p.invoice
+			, ol.order_code
+			, ol.order_name
+			, (select max(goods) from tb_order_detail where order_idx = ol.order_idx) AS goods
+			, (select count(goods) - 1 from tb_order_detail where order_idx = ol.order_idx) AS goodsCnt
+			, b.buyer_country_code
+			, b.buyer_country
+			, (case 
+			        when p.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', p.courier, #{locale})
+			        when p.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', p.courier, #{locale})
+			        else '' 
+			    end) as courier
+			, (select code_etc from tb_use_code where code_id=p.courier) courier_code
+			, DATE_FORMAT(ol.order_date, '%Y-%m-%d') AS orderDate
+			, p.add_charge_info
+			, b.state_group
+			, b.reason
+			, IFNULL((select local_code from tb_delivery_local_data where master_code=b.master_code), '') localCode
+			, (FN_GET_STATE_CSS(b.state)) as stateStrCss
+			, FN_LOCALE_MESSAGE(b.state_group,b.state ,#{locale}) AS stateStr
+			<if test="stateGroup != null and stateGroup != ''">
+	            , FN_LOCALE_MESSAGE('A030000',b.reason ,#{locale}) AS reasonStr
+	            , (FN_GET_STATE_CSS(b.reason)) as reasonStrCss
+            </if>
+        from tb_shop as a 
+            join tb_delivery as b on a.shop_idx = b.shop_idx
+            join tb_delivery_order o on b.master_code = o.master_code
+            join tb_order_list ol on o.order_code = ol.order_code and a.shop_idx = ol.shop_idx 
+            join tb_delivery_payment as p on b.master_code = p.master_code
+        where 1 = 1 
+             <include refid="searchCsDelivery"></include>
+         <if test="currentPage != 0">
+             <if test="startRow neq totalPageNum"> 
+                 LIMIT #{startRow}, #{pageSize}
+             </if>
+         </if>
+    </select>
+    -->
+    <select id="selectAdminCsDeliveryList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        select 
+            b.master_code
+            , a.shop_name
+            , b.shop_idx
+            , b.combine_code
+            , p.invoice
+            , ol.order_code
+            , ol.order_name
+            , (select max(goods) from tb_order_detail where order_idx = ol.order_idx) AS goods
+            , (select count(goods) - 1 from tb_order_detail where order_idx = ol.order_idx) AS goodsCnt
+            , b.buyer_country_code
+            , b.buyer_country
+            , (case 
+                    when p.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', p.courier, #{locale})
+                    when p.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', p.courier, #{locale})
+                    else '' 
+                end) as courier
+            , (select code_etc from tb_use_code where code_id=p.courier) courier_code
+            , DATE_FORMAT(b.shipment_data, '%Y-%m-%d') AS orderDate
+            , p.add_charge_info
+            , b.state_group
+            , b.reason
+            , m.memo as changeReason
+            ,IFNULL((select max(local_code) from tb_delivery_local_data where master_code=b.master_code), '') localCode
+            , (FN_GET_STATE_CSS(b.state)) as stateStrCss
+            , FN_LOCALE_MESSAGE(b.state_group,b.state ,#{locale}) AS stateStr
+            <if test="stateGroup != null and stateGroup != ''">
+              , FN_LOCALE_MESSAGE('A030000',SUBSTR(b.reason,1,10) ,#{locale}) AS reasonStr
+              , (FN_GET_STATE_CSS(SUBSTR(b.reason,1,10))) as reasonStrCss
+            </if>
+            ,a.email
+            ,b.hbl_no as hblNo
+            ,tdt.tracking_no as trackingNo
+        from tb_shop as a 
+            join tb_delivery as b on a.shop_idx = b.shop_idx
+            join tb_delivery_order o on b.master_code = o.master_code
+            join tb_order_list ol on o.order_code = ol.order_code and a.shop_idx = ol.shop_idx 
+            join tb_delivery_payment as p on b.master_code = p.master_code
+            left outer join tb_delivery_tracking tdt on b.master_code = tdt.master_code
+            left outer join tb_delivery_memo as m on b.master_code = m.master_code
+       
+        where 1 = 1 
+             <include refid="searchCsDelivery"></include>
+             ORDER BY b.state, b.reg_date DESC
+         <if test="currentPage != 0">
+             <if test="startRow neq totalPageNum"> 
+                 LIMIT #{startRow}, #{pageSize}
+             </if>
+         </if>
+    </select>
+    
+    
+    <!-- 
+        CS 관리> 상세보기 팝업 (NEW)
+    -->
+    <select id="selectAdminCsDeliveryView" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+    	select 
+			b.master_code
+			, p.invoice
+			, ol.order_code
+			, ol.order_name
+			, (select customer_name from tb_order_detail where order_idx=ol.order_idx limit 1) as customerName
+			, b.buyer_province_code
+			, p.courier_company
+			, FN_LOCALE_MESSAGE('B010000', p.courier_company, #{locale}) courier_company_name
+			, courier
+			, (select code_etc from tb_use_code where code_id=p.courier) as courier_code
+			, ((p.payment + p.payment_vat) - p.rank_price) as total_price
+			, p.pay_weight
+			, p.pay_weight_unit
+			, b.shipment_data
+			, p.payment_date
+			, ol.order_date
+			, b.seller_name
+			, b.seller_phone
+			, b.seller_zip_code
+			, b.seller_addr1
+			, b.seller_addr2
+			, b.buyer_firstname
+			, b.buyer_lastname
+			, b.buyer_phone
+			, b.buyer_email
+			, b.buyer_country_code
+			, b.buyer_country
+			, b.buyer_city
+			, b.buyer_province
+			, b.buyer_zip_code
+			, b.buyer_addr1
+			, b.buyer_addr2
+			, b.state_group
+			, b.state
+			, a.shop_name
+			, (select company from tb_seller where email=a.email) as company
+			, (case 	
+				    when #{paymentCode} = 'EW' then 
+					 	IF(p.pay_state = 'Y','결재완료','결재요청')
+			        when b.state_group = 'A020000' then FN_LOCALE_MESSAGE(b.state_group, b.state, #{locale})
+			        when b.state_group = 'A030000' then FN_LOCALE_MESSAGE('A070000', 'A070010', #{locale})
+			        when b.state_group = 'A040000' then FN_LOCALE_MESSAGE('A070000', 'A070020', #{locale})
+			        when b.state_group = 'A050000' then FN_LOCALE_MESSAGE('A070000', 'A070030', #{locale})
+			    end) as stateStr
+			, (case 
+					when #{paymentCode} = 'EW' then 
+					 	IF(p.pay_state = 'Y','paym2','paym')
+			        when b.state_group = 'A020000' then FN_GET_STATE_CSS(b.state)
+			        when b.state_group = 'A030000' then FN_GET_STATE_CSS('A030010')
+			        when b.state_group = 'A040000' then FN_GET_STATE_CSS('A040010')
+			        when b.state_group = 'A050000' then FN_GET_STATE_CSS('A050010')
+			    end) as stateStrCss
+			, IFNULL(l.local_code, '') as local_code
+			, IFNULL(l.invoice, '') as local_invoice
+			, IFNULL(l.delivery_company, '') as local_company
+			, IFNULL(l.state_code, '') as local_state
+			, IFNULL(l.box_type, '') as local_box
+		from tb_shop as a 
+			join tb_delivery as b on a.shop_idx = b.shop_idx
+			join tb_delivery_order o on b.master_code = o.master_code
+			join tb_delivery_payment as p on b.master_code = p.master_code
+			join tb_order_list as ol on o.order_code = ol.order_code and a.shop_idx = ol.shop_idx 
+			left outer join (
+				select
+					dl.local_code, invoice, delivery_company, state_code, box_type, master_code
+				from tb_delivery_local as dl 
+					join tb_delivery_local_data as dld on dl.local_code = dld.local_code
+				#where dld.master_code = b.master_code 
+			) as l on l.master_code = b.master_code  
+		where b.master_code = #{masterCode}
+		and p.payment_code in ('NA','ND','DO')
+    </select>
+    
+    <!-- 
+        CS 관리> 상세보기 팝업 (NEW)
+    -->
+    <select id="selectAdminCsDeliverySku" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.popup.AdminCsPopupData">
+    	select 
+			goods_code
+			,goods
+			,goods_type
+			,goods_sku
+			,price
+			,unit_cost
+			,hscode
+			,weight
+			,weight_unit
+			,quantity
+			,price_currency
+		from 
+			tb_delivery_sku 
+		where master_code = #{masterCode}
+    </select>
+    
+    
+    <!-- 
+        CS 관리> 추가요금 목록 count 
+    -->
+    <select id="selectAdminPaymentListCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        select count(*)
+              from tb_shop as a join tb_delivery as b on a.shop_idx = b.shop_idx
+                                join tb_delivery_order o on b.master_code = o.master_code
+                                join tb_order_list ol on o.order_code = ol.order_code and ol.shop_idx=a.shop_idx
+                                <!--  join tb_delivery_payment as p on b.master_code = p.master_code and payment_code='EW'-->
+                                join tb_delivery_payment as p on b.master_code = p.master_code
+             where 1 = 1 
+             and b.state_group = 'A060000'
+             	<include refid="searchCsDelivery"></include>
+    </select>
+    
+    <!-- 
+        CS 관리> 추가요금 목록 
+    -->
+    <select id="selectAdminPaymentList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT b.master_code AS masterCode
+              ,a.shop_name AS shopName
+              ,b.shop_idx AS shopIdx
+              ,b.combine_code AS combineCode
+              ,b.seller_name AS sellerName
+              ,b.seller_phone AS sellerPhone
+              ,b.seller_country_code AS sellerCountryCode
+              ,b.seller_country AS sellerCountry
+              ,b.seller_city AS sellerCity
+              ,b.seller_zip_code AS sellerZipCode
+              ,b.seller_addr1 AS sellerAddr1
+              ,b.seller_addr2 AS sellerAddr2
+              ,b.buyer_firstname AS buyerFirstname
+              ,b.buyer_lastname AS buyerLastname
+              ,b.buyer_phone AS buyerPhone
+              ,b.buyer_email AS buyerEmail
+              ,b.buyer_country_code AS buyerCountryCode
+              ,b.buyer_country AS buyerCountry
+              ,b.buyer_city AS buyerCity
+              ,b.buyer_province AS buyerProvince
+              ,b.buyer_zip_code AS buyerZipCode
+              ,b.buyer_addr1 AS buyerAddr1
+              ,b.buyer_addr2 AS buyerAddr2
+              ,b.box_length AS boxLength
+              ,b.box_width AS boxWidth
+              ,b.box_height AS boxHeight
+              ,b.box_type AS boxType
+              ,b.box_unit AS boxUnit
+              ,b.box_weight AS boxWeight
+              ,b.weight_unit AS weightUnit
+              ,b.state
+              ,b.reg_date AS regDate
+              ,p.invoice
+              ,p.add_charge_info
+              ,(case when p.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', p.courier, #{locale})
+                   when p.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', p.courier, #{locale})
+                   else '' end) as courier
+              ,(select code_etc from tb_use_code where code_id=p.courier) courier_code     
+              ,(SELECT max(goods) FROM tb_order_detail WHERE order_idx = ol.order_idx) AS goods
+              ,(SELECT count(goods) - 1 FROM tb_order_detail WHERE order_idx = ol.order_idx) AS goodsCnt
+              ,ol.order_code AS orderCode
+              ,ol.order_name AS orderName
+              ,DATE_FORMAT(IFNULL(ol.order_date,now()),'%Y-%m-%d') AS orderDate
+              ,p.pay_state AS payState
+              ,FN_LOCALE_MESSAGE(b.state_group,b.state ,#{locale}) AS stateStr
+              ,(FN_GET_STATE_CSS(b.state)) as stateStrCss
+              ,b.shipment_data AS shipmentDate
+              ,p.payment AS payment
+              ,b.state_group AS stateGroup
+              , IFNULL((select local_code from tb_delivery_local_data where master_code=b.master_code), '') localCode
+              from tb_shop as a join tb_delivery as b on a.shop_idx = b.shop_idx
+                                join tb_delivery_order o on b.master_code = o.master_code
+                                join tb_order_list ol on o.order_code = ol.order_code and ol.shop_idx=a.shop_idx
+                                <!--  join tb_delivery_payment as p on b.master_code = p.master_code and p.payment_code = 'EW'-->
+                                join tb_delivery_payment as p on b.master_code = p.master_code
+             where 1 = 1 
+             and b.state_group = 'A060000'
+             <include refid="searchCsDelivery"></include>
+             <if test="currentPage != 0">
+                 <if test="startRow neq totalPageNum"> 
+                     LIMIT #{startRow}, #{pageSize}
+                 </if>
+             </if>
+    </select>
+    
+    
+    <!-- CS관리 > 추가요금 결재 상태변경  -->
+    <update id="updateAdminCsPaymentStatus" parameterType="com.shopify.admin.cs.AdminCsData">
+        update tb_delivery_payment 
+           set pay_state = #{payState} 
+            , payment_date = now()
+        where master_code = #{masterCode}
+    </update>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+
+	<!-- CS관리 검색조건  -->
+    <sql id="searchCs">
+        <choose>
+            <when test="searchDateEnd != null and searchDateEnd != ''">
+                <if test="searchDateStart != null and searchDateStart != ''">
+                    AND DATE_FORMAT(IFNULL(OL.order_date,now()),'%Y-%m-%d') between #{searchDateStart} and #{searchDateEnd}
+                </if>
+            </when>
+            <otherwise>
+                <if test="searchDateStart != null and searchDateStart != ''">
+                    AND DATE_FORMAT(IFNULL(OL.order_date,now()),'%Y-%m-%d') &gt;= #{searchDateStart} 
+                </if>
+            </otherwise>
+        </choose>
+        
+        <if test="searchState != null and searchState != ''">
+        <!-- 유형별 코드 정해지면 반송일 경우에는 B.reason 컬럼, 그외의 탭에서는 B.state에 조건 걸어줘야함 -->
+            AND B.state = #{searchState}
+        </if>
+        
+        <if test="searchWord != null and searchWord != ''"> 
+            <choose>
+	            <when test="searchType == 'orderCode'">
+                    AND OL.order_code LIKE '%' #{searchWord} '%'
+                </when>
+                <when test="searchType == 'name'">
+                    AND (B.buyer_firstname = #{searchWordAese} OR B.buyer_lastname = #{searchWordAese} 
+                      OR CONCAT(B.buyer_firstname,' ',B.buyer_lastname) = #{searchWordAese}) 
+                </when>
+                <when test="searchType == 'goods'">
+                    AND ( OL.order_idx in (SELECT order_idx 
+                                                   FROM tb_order_detail 
+                                                   WHERE order_idx = OL.order_idx 
+                                                   AND goods LIKE '%' #{searchWord} '%') )
+                </when>
+                
+                <when test="searchType == 'invoice'">
+                    AND (B.master_code LIKE '%' #{searchWord} '%' or p.invoice LIKE '%' #{searchWord} '%')  
+                </when>
+                <when test="searchType == 'shopName'">
+                    AND (A.shop_name LIKE '%' #{searchWord} '%' or A.domain LIKE '%' #{searchWord} '%') 
+                </when>
+                <when test="searchType == 'orderName'">
+                    AND (OL.order_code LIKE '%' #{searchWord} '%' or OL.order_name LIKE '%' #{searchWord} '%')  
+                </when>
+            </choose>
+        </if>
+    </sql>
+    
+    <!-- CS 관리> 배송목록 count -->
+    <select id="selectAdminDeliveryListCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*)
+              FROM tb_shop AS a 
+                                JOIN tb_delivery AS b ON a.shop_idx = b.shop_idx
+                                JOIN tb_delivery_order o ON b.master_code = o.master_code
+                                JOIN tb_order_list ol ON o.order_code = ol.order_code
+                                LEFT OUTER JOIN tb_delivery_payment AS p ON b.master_code = p.master_code
+		     where 1 = 1 
+             <include refid="searchCsDelivery"></include>
+    </select>
+    
+	<select id="selectAdminDeliveryList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT b.master_code AS masterCode
+              ,a.shop_name AS shopName
+			  ,b.shop_idx AS shopIdx
+			  ,b.combine_code AS combineCode
+			  ,b.seller_name AS sellerName
+			  ,b.seller_phone AS sellerPhone
+			  ,b.seller_country_code AS sellerCountryCode
+			  ,b.seller_country AS sellerCountry
+			  ,b.seller_city AS sellerCity
+			  ,b.seller_zip_code AS sellerZipCode
+			  ,b.seller_addr1 AS sellerAddr1
+			  ,b.seller_addr2 AS sellerAddr2
+			  ,b.buyer_firstname AS buyerFirstname
+			  ,b.buyer_lastname AS buyerLastname
+			  ,b.buyer_phone AS buyerPhone
+			  ,b.buyer_email AS buyerEmail
+			  ,b.buyer_country_code AS buyerCountryCode
+			  ,b.buyer_country AS buyerCountry
+			  ,b.buyer_city AS buyerCity
+			  ,b.buyer_province AS buyerProvince
+			  ,b.buyer_zip_code AS buyerZipCode
+			  ,b.buyer_addr1 AS buyerAddr1
+			  ,b.buyer_addr2 AS buyerAddr2
+			  ,b.box_length AS boxLength
+			  ,b.box_width AS boxWidth
+			  ,b.box_height AS boxHeight
+			  ,b.box_unit AS boxUnit
+			  ,b.box_weight AS boxWeight
+		 	  ,b.weight_unit AS weightUnit
+		 	  ,b.box_type AS boxType
+			  ,b.state
+			  ,b.reg_date AS regDate
+			  ,p.invoice
+			  ,p.add_charge_info
+			  ,(case when p.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', p.courier, #{locale})
+                   when p.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', p.courier,   #{locale})
+                   when p.courier_company = 'B010030' then FN_LOCALE_MESSAGE('B140000', p.courier,   #{locale})
+                   else '' end) as courier
+              ,(select code_etc from tb_use_code where code_id=p.courier) courier_code
+              ,(SELECT max(goods) FROM tb_order_detail WHERE order_idx = ol.order_idx) AS goods
+              ,(SELECT count(goods) - 1 FROM tb_order_detail WHERE order_idx = ol.order_idx) AS goodsCnt
+              ,ol.order_code AS orderCode
+              ,ol.order_name AS orderName
+              ,DATE_FORMAT(IFNULL(ol.order_date,now()),'%Y-%m-%d') AS orderDate
+              ,p.pay_state AS payState
+              ,FN_LOCALE_MESSAGE(b.state_group,b.state ,#{locale}) AS stateStr
+              ,(FN_GET_STATE_CSS(b.state)) as stateStrCss
+              ,b.shipment_data AS shipmentDate
+              <if test="stateGroup != null and stateGroup != ''">
+              ,b.reason AS reason
+              ,FN_LOCALE_MESSAGE('A030000',b.reason ,#{locale}) AS reasonStr
+              ,(FN_GET_STATE_CSS(b.reason)) as reasonStrCss
+              </if>
+              ,p.payment AS payment
+              ,b.state_group AS stateGroup
+              FROM tb_shop AS a 
+                    JOIN tb_delivery AS b ON a.shop_idx = b.shop_idx
+                    JOIN tb_delivery_order o ON b.master_code = o.master_code
+                    JOIN tb_order_list ol ON o.order_code = ol.order_code
+                    LEFT OUTER JOIN tb_delivery_payment AS p ON b.master_code = p.master_code 
+		     
+		      where 1 = 1 
+             <include refid="searchCsDelivery"></include>
+             ORDER BY b.state, b.reg_date DESC
+	         <if test="currentPage != 0">
+	             <if test="startRow neq totalPageNum"> 
+	                 LIMIT #{startRow}, #{pageSize}
+	             </if>
+	         </if>
+    </select>
+    
+    
+    
+	<!-- CS 관리> 반송목록 count -->
+    <select id="selectAdminBackListCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*)
+              FROM tb_shop AS A JOIN tb_delivery AS B ON A.shop_idx = B.shop_idx
+                                JOIN tb_delivery_order O ON B.master_code = O.master_code
+                                JOIN tb_order_list OL ON O.order_code = OL.order_code
+                     LEFT OUTER JOIN tb_delivery_payment AS P ON B.master_code = p.master_code AND payment_code = 'ER'
+		     WHERE O.hide_yn = 'N' AND
+	               OL.hide_yn = 'Y' AND
+	               OL.order_idx IN (SELECT order_idx FROM tb_order_detail WHERE order_idx = OL.order_idx AND del_yn = 'N') AND
+	               B.state_group = 'A030000'
+		<include refid="searchCs"></include>
+    </select>
+    
+    <!-- CS 관리> 반송목록   -->
+    <select id="selectAdminBackList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT B.master_code AS masterCode
+              ,A.shop_name AS shopName
+			  ,B.shop_idx AS shopIdx
+			  ,B.combine_code AS combineCode
+			  ,B.seller_name AS sellerName
+			  ,B.seller_phone AS sellerPhone
+			  ,B.seller_country_code AS sellerCountryCode
+			  ,B.seller_country AS sellerCountry
+			  ,B.seller_city AS sellerCity
+			  ,B.seller_zip_code AS sellerZipCode
+			  ,B.seller_addr1 AS sellerAddr1
+			  ,B.seller_addr2 AS sellerAddr2
+			  ,B.buyer_firstname AS buyerFirstname
+			  ,B.buyer_lastname AS buyerLastname
+			  ,B.buyer_phone AS buyerPhone
+			  ,B.buyer_email AS buyerEmail
+			  ,B.buyer_country_code AS buyerCountryCode
+			  ,B.buyer_country AS buyerCountry
+			  ,B.buyer_city AS buyerCity
+			  ,B.buyer_province AS buyerProvince
+			  ,B.buyer_zip_code AS buyerZipCode
+			  ,B.buyer_addr1 AS buyerAddr1
+			  ,B.buyer_addr2 AS buyerAddr2
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+			  ,B.box_unit AS boxUnit
+			  ,B.box_weight AS boxWeight
+		 	  ,B.weight_unit AS weightUnit
+		 	  ,B.box_type AS boxType
+			  ,B.state
+			  ,B.reg_date AS regDate
+			  ,p.invoice
+			  ,p.add_charge_info
+			  ,(case when p.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', p.courier, #{locale})
+                   when p.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', p.courier, #{locale})
+                   else '' end) as courier
+              ,(select code_etc from tb_use_code where code_id=p.courier) courier_code     
+              ,(SELECT max(goods) FROM tb_order_detail WHERE order_idx = OL.order_idx) AS goods
+              ,(SELECT count(goods) - 1 FROM tb_order_detail WHERE order_idx = OL.order_idx) AS goodsCnt
+              ,OL.order_code AS orderCode
+              ,OL.order_name AS orderName
+              ,DATE_FORMAT(IFNULL(OL.order_date,now()),'%Y-%m-%d') AS orderDate
+              ,p.pay_state AS payState
+              ,FN_LOCALE_MESSAGE(B.state_group,B.state ,#{locale}) AS stateStr
+              ,(FN_GET_STATE_CSS(B.state)) as stateStrCss
+              ,B.shipment_data AS shipmentDate
+              ,B.reason AS reason
+              ,FN_LOCALE_MESSAGE('A030000',B.reason ,#{locale}) AS reasonStr
+              ,(FN_GET_STATE_CSS(B.reason)) as reasonStrCss
+              ,p.payment AS payment
+              ,B.state_group AS stateGroup
+              FROM tb_shop AS A JOIN tb_delivery AS B ON A.shop_idx = B.shop_idx
+                                JOIN tb_delivery_order O ON B.master_code = O.master_code
+                                JOIN tb_order_list OL ON O.order_code = OL.order_code
+                     LEFT OUTER JOIN tb_delivery_payment AS P ON B.master_code = p.master_code AND p.payment_code = 'ER' 
+		     WHERE O.hide_yn = 'N' AND
+	               OL.hide_yn = 'Y' AND
+	               OL.order_idx IN (SELECT order_idx FROM tb_order_detail WHERE order_idx = OL.order_idx AND del_yn = 'N') AND
+	               B.state_group = 'A030000'
+	         <if test="masterCode != null and masterCode != '' " >
+	         	AND B.master_code = #{masterCode}
+	         </if>      
+	         <include refid="searchCs"></include>
+	         <if test="currentPage != 0">
+	        	 <if test="startRow neq totalPageNum"> 
+	            	 LIMIT #{startRow}, #{pageSize}
+	        	 </if>
+	         </if>
+    </select>
+    
+    <!-- CS 관리> 교환목록 count -->
+    <select id="selectAdminExchangeListCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*)
+              FROM tb_shop AS A JOIN tb_delivery AS B ON A.shop_idx = B.shop_idx
+                                JOIN tb_delivery_order O ON B.master_code = O.master_code
+                                JOIN tb_order_list OL ON O.order_code = OL.order_code
+                     LEFT OUTER JOIN tb_delivery_payment AS P ON B.master_code = p.master_code AND payment_code='NA'
+		     WHERE O.hide_yn = 'N' AND
+	               OL.hide_yn = 'Y' AND
+	               OL.order_idx IN (SELECT order_idx FROM tb_order_detail WHERE order_idx = OL.order_idx AND del_yn = 'N') AND
+	               B.state_group = 'A040000'
+        <include refid="searchCs"></include>
+    </select>
+    
+    <!-- CS 관리> 교환목록   -->
+    <select id="selectAdminExchangeList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT B.master_code AS masterCode
+              ,A.shop_name AS shopName
+			  ,B.shop_idx AS shopIdx
+			  ,B.combine_code AS combineCode
+			  ,B.seller_name AS sellerName
+			  ,B.seller_phone AS sellerPhone
+			  ,B.seller_country_code AS sellerCountryCode
+			  ,B.seller_country AS sellerCountry
+			  ,B.seller_city AS sellerCity
+			  ,B.seller_zip_code AS sellerZipCode
+			  ,B.seller_addr1 AS sellerAddr1
+			  ,B.seller_addr2 AS sellerAddr2
+			  ,B.buyer_firstname AS buyerFirstname
+			  ,B.buyer_lastname AS buyerLastname
+			  ,B.buyer_phone AS buyerPhone
+			  ,B.buyer_email AS buyerEmail
+			  ,B.buyer_country_code AS buyerCountryCode
+			  ,B.buyer_country AS buyerCountry
+			  ,B.buyer_city AS buyerCity
+			  ,B.buyer_province AS buyerProvince
+			  ,B.buyer_zip_code AS buyerZipCode
+			  ,B.buyer_addr1 AS buyerAddr1
+			  ,B.buyer_addr2 AS buyerAddr2
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+			  ,B.box_unit AS boxUnit
+			  ,B.box_weight AS boxWeight
+			  ,B.box_type AS boxType
+		 	  ,B.weight_unit AS weightUnit
+			  ,B.state
+			  ,B.reg_date AS regDate
+			  ,p.invoice
+			  ,p.add_charge_info
+			  ,(case when p.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', p.courier, #{locale})
+                   when p.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', p.courier, #{locale})
+                   else '' end) as courier
+              ,(select code_etc from tb_use_code where code_id=p.courier) courier_code
+              ,(SELECT max(goods) FROM tb_order_detail WHERE order_idx = OL.order_idx) AS goods
+              ,(SELECT count(goods) - 1 FROM tb_order_detail WHERE order_idx = OL.order_idx) AS goodsCnt
+              ,OL.order_code AS orderCode
+              ,OL.order_name AS orderName
+              ,DATE_FORMAT(IFNULL(OL.order_date,now()),'%Y-%m-%d') AS orderDate
+              ,p.pay_state AS payState
+              ,FN_LOCALE_MESSAGE(B.state_group,B.state ,#{locale}) AS stateStr
+              ,(FN_GET_STATE_CSS(B.state)) as stateStrCss
+              ,B.shipment_data AS shipmentDate
+              ,p.payment AS payment
+              ,B.state_group AS stateGroup
+              FROM tb_shop AS A JOIN tb_delivery AS B ON A.shop_idx = B.shop_idx
+                                JOIN tb_delivery_order O ON B.master_code = O.master_code
+                                JOIN tb_order_list OL ON O.order_code = OL.order_code
+                     LEFT OUTER JOIN tb_delivery_payment AS P ON B.master_code = p.master_code AND payment_code='NA'
+		     WHERE O.hide_yn = 'N' AND
+	               OL.hide_yn = 'Y' AND
+	               OL.order_idx IN (SELECT order_idx FROM tb_order_detail WHERE order_idx = OL.order_idx AND del_yn = 'N') AND
+	               B.state_group = 'A040000'
+	         <if test="masterCode != null and masterCode != '' " >
+	         	AND B.master_code = #{masterCode}
+	         </if>
+	         <include refid="searchCs"></include>
+	         <if test="currentPage != 0">
+				 <if test="startRow neq totalPageNum">
+	            	 LIMIT #{startRow}, #{pageSize}
+	        	 </if>        
+	         </if>
+    </select>
+    
+    <!-- CS 관리> 반품목록 count -->
+    <select id="selectAdminReturnListCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*)
+              FROM tb_shop AS A JOIN tb_delivery AS B ON A.shop_idx = B.shop_idx
+                                JOIN tb_delivery_order O ON B.master_code = O.master_code
+                                JOIN tb_order_list OL ON O.order_code = OL.order_code
+                     LEFT OUTER JOIN tb_delivery_payment AS P ON B.master_code = p.master_code AND payment_code='NA'
+		     WHERE O.hide_yn = 'N' AND
+	               OL.hide_yn = 'Y' AND
+	               OL.order_idx IN (SELECT order_idx FROM tb_order_detail WHERE order_idx = OL.order_idx AND del_yn = 'N') AND 
+	               B.state_group = 'A050000'
+        <include refid="searchCs"></include>
+    </select>
+    
+    <!-- CS 관리> 반품목록   -->
+    <select id="selectAdminReturnList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT B.master_code AS masterCode
+              ,A.shop_name AS shopName
+			  ,B.shop_idx AS shopIdx
+			  ,B.combine_code AS combineCode
+			  ,B.seller_name AS sellerName
+			  ,B.seller_phone AS sellerPhone
+			  ,B.seller_country_code AS sellerCountryCode
+			  ,B.seller_country AS sellerCountry
+			  ,B.seller_city AS sellerCity
+			  ,B.seller_zip_code AS sellerZipCode
+			  ,B.seller_addr1 AS sellerAddr1
+			  ,B.seller_addr2 AS sellerAddr2
+			  ,B.buyer_firstname AS buyerFirstname
+			  ,B.buyer_lastname AS buyerLastname
+			  ,B.buyer_phone AS buyerPhone
+			  ,B.buyer_email AS buyerEmail
+			  ,B.buyer_country_code AS buyerCountryCode
+			  ,B.buyer_country AS buyerCountry
+			  ,B.buyer_city AS buyerCity
+			  ,B.buyer_province AS buyerProvince
+			  ,B.buyer_zip_code AS buyerZipCode
+			  ,B.buyer_addr1 AS buyerAddr1
+			  ,B.buyer_addr2 AS buyerAddr2
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+			  ,B.box_unit AS boxUnit
+			  ,B.box_weight AS boxWeight
+			  ,B.box_type AS boxType
+		 	  ,B.weight_unit AS weightUnit
+			  ,B.state
+			  ,B.reg_date AS regDate
+			  ,p.invoice
+			  ,p.add_charge_info
+			  ,(case when p.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', p.courier, #{locale})
+                   when p.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', p.courier, #{locale})
+                   else '' end) as courier
+              ,(select code_etc from tb_use_code where code_id=p.courier) courier_code     
+              ,(SELECT max(goods) FROM tb_order_detail WHERE order_idx = OL.order_idx) AS goods
+              ,(SELECT count(goods) - 1 FROM tb_order_detail WHERE order_idx = OL.order_idx) AS goodsCnt
+              ,OL.order_code AS orderCode
+              ,OL.order_name AS orderName
+              ,DATE_FORMAT(IFNULL(OL.order_date,now()),'%Y-%m-%d') AS orderDate
+              ,p.pay_state AS payState
+              ,B.shipment_data AS shipmentDate
+              ,p.payment AS payment
+              ,B.state_group AS stateGroup
+<!--               ,FORMAT((SELECT price FROM tb_delivery_payment where master_code = B.master_code AND pay_id ='EW'),0) AS ewPrice               -->
+              FROM tb_shop AS A JOIN tb_delivery AS B ON A.shop_idx = B.shop_idx
+                                JOIN tb_delivery_order O ON B.master_code = O.master_code
+                                JOIN tb_order_list OL ON O.order_code = OL.order_code
+                     LEFT OUTER JOIN tb_delivery_payment AS P ON B.master_code = p.master_code AND payment_code='NA'
+		     WHERE O.hide_yn = 'N' AND
+	               OL.hide_yn = 'Y' AND
+	               OL.order_idx IN (SELECT order_idx FROM tb_order_detail WHERE order_idx = OL.order_idx AND del_yn = 'N') AND
+	               B.state_group = 'A050000'
+	         <if test="masterCode != null and masterCode != '' " >
+	         	AND B.master_code = #{masterCode}
+	         </if>
+	         <include refid="searchCs"></include>
+	         <if test="currentPage != 0">
+	        	 <if test="startRow neq totalPageNum"> 
+		             LIMIT #{startRow}, #{pageSize}
+		         </if>
+	         </if>
+    </select>
+    
+    
+    
+    <!-- CS관리 > 상태체크   -->
+    <select id="csStatusChk" parameterType="com.shopify.admin.cs.AdminCsData" resultType="String">
+        SELECT state AS status FROM tb_delivery  
+          WHERE master_code = #{masterCode}
+    </select>
+    
+    
+    <!-- CS관리 > 상태변경  -->
+    <update id="updateAdminCsStatus" parameterType="com.shopify.admin.cs.AdminCsData">
+        UPDATE tb_delivery 
+           SET state = #{updateStatus} 
+            , up_date = NOW()
+        WHERE master_code = #{masterCode}
+    </update>
+    
+    <select id="selectAdminDeliveryDetailList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+    	SELECT B.order_idx AS orderIdx 
+		      ,B.goods_code AS goodsCode
+			  ,B.goods AS goods
+			  ,B.goods_sku AS goodsSku
+			  ,B.weight AS weight
+			  ,B.weight_unit AS weightUnit
+			  ,B.quantity AS quantity
+			  ,B.origin AS origin
+			  ,B.hscode AS hsCode
+			  ,B.goods_type AS goodsType
+			  ,B.price AS price
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+    	      ,O.order_code AS orderCode
+    	  FROM tb_delivery_sku B
+    	  JOIN tb_delivery_order O ON B.master_code = O.master_code
+    	  WHERE B.master_code = #{masterCode}
+    	  ORDER BY B.order_idx ASC
+    </select>
+    
+    <select id="selectAdminBackDetailList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+    	SELECT B.order_idx AS orderIdx 
+		      ,B.goods_code AS goodsCode
+			  ,B.goods AS goods
+			  ,B.goods_sku AS goodsSku
+			  ,B.weight AS weight
+			  ,B.weight_unit AS weightUnit
+			  ,B.quantity AS quantity
+			  ,B.origin AS origin
+			  ,B.hscode AS hsCode
+			  ,B.goods_type AS goodsType
+			  ,p.payment AS price
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+    	      ,O.order_code AS orderCode
+    	  FROM tb_delivery_sku B
+    	  JOIN tb_delivery_order O ON B.master_code = O.master_code
+    	  JOIN tb_delivery_payment P ON O.master_code = p.master_code
+    	  WHERE B.master_code = #{masterCode}
+    	    AND p.payment_code = 'ER'
+       ORDER BY B.order_idx ASC
+    </select>
+    
+    <select id="selectAdminExchangeDetailList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+    	SELECT B.order_idx AS orderIdx 
+		      ,B.goods_code AS goodsCode
+			  ,B.goods AS goods
+			  ,B.goods_sku AS goodsSku
+			  ,B.weight AS weight
+			  ,B.weight_unit AS weightUnit
+			  ,B.quantity AS quantity
+			  ,B.origin AS origin
+			  ,B.hscode AS hsCode
+			  ,B.goods_type AS goodsType
+			  ,B.price AS price
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+			  ,O.order_code AS orderCode
+    	  FROM tb_delivery_sku B
+    	  JOIN tb_delivery_order O ON B.master_code = O.master_code
+    	  WHERE B.master_code = #{masterCode}
+    	  AND p.payment_code = 'NA'
+    	  ORDER BY B.order_idx ASC
+    </select>
+
+	<select id="selectAdminReturnDetailList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+    	SELECT B.order_idx AS orderIdx 
+		      ,B.goods_code AS goodsCode
+			  ,B.goods AS goods
+			  ,B.goods_sku AS goodsSku
+			  ,B.weight AS weight
+			  ,B.weight_unit AS weightUnit
+			  ,B.quantity AS quantity
+			  ,B.origin AS origin
+			  ,B.hscode AS hsCode
+			  ,B.goods_type AS goodsType
+			  ,B.price AS price
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+			  ,O.order_code AS orderCode
+    	  FROM tb_delivery_sku B
+    	  JOIN tb_delivery_order O ON B.master_code = O.master_code
+    	  WHERE B.master_code = #{masterCode}
+    	  AND p.payment_code = 'NA'
+    	  ORDER BY B.order_idx ASC
+    </select>   
+    
+    <select id="selectAdminPaymentDetailList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+    	SELECT B.order_idx AS orderIdx 
+		      ,B.goods_code AS goodsCode
+			  ,B.goods AS goods
+			  ,B.goods_sku AS goodsSku
+			  ,B.weight AS weight
+			  ,B.weight_unit AS weightUnit
+			  ,B.quantity AS quantity
+			  ,B.origin AS origin
+			  ,B.hscode AS hsCode
+			  ,B.goods_type AS goodsType
+			  ,p.payment AS price
+			  ,B.box_length AS boxLength
+			  ,B.box_width AS boxWidth
+			  ,B.box_height AS boxHeight
+			  ,O.order_code AS orderCode
+			  ,p.pay_state AS payState
+			  ,p.payment_date AS paymentDate
+    	  FROM tb_delivery_sku B
+    	  JOIN tb_delivery_order O ON B.master_code = O.master_code
+    	  JOIN tb_delivery_payment P ON O.master_code = p.master_code
+    	  WHERE B.master_code = #{masterCode}
+    	    AND p.payment_code = 'EW'
+    	  ORDER BY B.order_idx ASC
+    </select>
+    
+    
+    <!-- 2020-02-20 수정시작 -->
+    
+    <!-- 
+    	Admin CS > 배송 리스트 count
+    -->
+    <select id="selectAdminCsDeliveryCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*) AS shipmentCount 
+        FROM tb_shop as A join tb_delivery as B        on A.shop_idx = B.shop_idx
+        join tb_delivery_order O                                    on B.master_code = O.master_code 
+        join tb_order_list OL                                         on O.order_code = OL.order_code
+        LEFT OUTER JOIN tb_delivery_payment as P         on B.master_code = p.master_code AND p.payment_code = 'ER'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y'
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N') 
+		<if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    <!-- 
+         Admin CS > 배송 상세정보 select
+    -->
+    
+    <select id="selectAdminCsDeliveryDetail" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT A.shop_name AS shopName 
+            , B.master_code        as masterCode
+            , B.shop_idx                  as shopIdx
+            , B.combine_code           as combineCode
+            , B.seller_name              as sellerName
+            , B.seller_phone             as sellerPhone 
+            , B.seller_country_code   as sellerCountryCode
+            , B.seller_country           as sellerCountry
+            , B.seller_city                as sellerCity
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1             as sellerAddr1
+            , B.seller_addr2             as sellerAddr2
+            , IFNULL(B.buyer_firstname,'')        as buyerFirstname
+            , IFNULL(B.buyer_lastname,'')        as buyerLastname
+            , IFNULL(B.buyer_phone,'')            as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code   as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city                as buyerCity 
+            , B.buyer_province         as buyerProvince
+            , B.buyer_zip_code        as buyerZipCode 
+            , B.buyer_addr1            as buyerAddr1
+            , B.buyer_addr2            as buyerAddr2
+            , B.box_length              as boxLength
+            , B.box_width               as boxWidth
+            , B.box_height              as boxHeight
+            , B.box_unit                 as boxUnit
+            , B.box_weight             as boxWeight
+            , B.weight_unit            as weightUnit
+            , B.state
+            , (FN_LOCALE_MESSAGE(B.state_group, B.state, #{locale})) as stateStr
+            ,(FN_GET_STATE_CSS(B.state)) as stateStrCss
+            ,FN_LOCALE_MESSAGE('A030000',B.reason ,#{locale}) AS reasonStr
+            ,(FN_GET_STATE_CSS(B.reason)) as reasonStrCss
+            , P.pay_state                as payState
+            , sum(P.pay_weight)     as payWeight
+            , sum(P.payment)         as payment
+            , P.invoice       
+            ,(case when P.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', P.courier, #{locale})
+                   when P.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', P.courier, #{locale})
+                   else '' end) as courier
+            ,(select code_etc from tb_use_code where code_id=P.courier) courier_code       
+            , (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)  as rankPrice
+            , (sum(P.payment) + (sum(P.payment_vat))) as paymentTotal
+            ,OD.location_id as locationId
+            ,OL.order_code			as orderCode
+            ,OL.order_name          as orderName
+            ,S.quantity					as quantity
+            ,max(OD.goods) as goods
+			, DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDateStr
+			, sum(OD.price) AS orderPrice
+			, max(OD.customer_name) AS customerName
+			,(select sum(pp.payment) from tb_delivery_payment as pp where pp.master_code = P.master_code and payment_code in ('ND','NA')) as deliveryAmount
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_sku S on B.master_code = S.master_code
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        join tb_order_detail OD on OL.order_idx = OD.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = P.master_code 
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y'
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N')
+        <if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+        Admin CS > 배송 관세 리스트 select count
+    -->
+    <select id="selectPopAdminCsDeliverySkuCount" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="int">
+        SELECT count(O.order_idx)
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code='ER'
+        WHERE O.hide_yn = 'N'  
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    <!-- 
+         Admin CS > 배송 관세 리스트 select
+    -->
+    <select id="selectPopAdminCsDeliverySkuList" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="com.shopify.admin.cs.popup.AdminCsPopupData">
+        SELECT B.order_idx       as orderIdx
+                ,B.goods_code     as goodsCode
+                ,B.goods
+                ,B.goods_type      as goodsType
+                ,CASE WHEN #{locale} = 'ko' THEN (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+					  WHEN #{locale} = 'en' THEN (SELECT code_ename FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+	             ELSE (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type) 
+                  END AS goodsTypeStr
+                ,B.goods_sku       as goodsSku
+                ,B.price
+                ,B.unit_cost         as unitCost
+                ,B.taxable
+                ,B.barcode
+                ,B.origin
+                ,B.hscode
+                ,B.box_length       as boxLength
+                ,B.box_width        as boxWidth
+                ,B.box_height        as boxHeight
+                ,B.box_unit           as boxUnit
+                ,B.weight
+                ,B.weight_unit       as weightUnit
+                ,B.quantity
+                , DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d')  as regDate
+                ,(select max(invoice) from tb_delivery_payment where master_code = D.master_code) as invoice
+                ,(select max(FN_LOCALE_MESSAGE('B020000', courier, #{locale})) from tb_delivery_payment where master_code = D.master_code) as courier
+                ,(select max(IFNULL(buyer_firstname,'')) from tb_delivery where master_code = D.master_code) as buyerFirstname
+                ,(select max(IFNULL(buyer_lastname,'')) from tb_delivery where master_code = D.master_code) as buyerLastname
+                , O.order_code       as orderCode
+                , (select DATE_FORMAT(IFNULL(MAX(order_date),now()),'%Y-%m-%d') from tb_order_list where shop_idx = A.shop_idx and order_idx = O.order_idx) as orderDate
+                , D.master_code     as masterCode
+                , p.payment
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code ='ER'
+        WHERE O.hide_yn = 'N'  
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+    	Admin CS > 반송 리스트 count
+    -->
+    <select id="selectAdminCsBackCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*) AS shipmentCount 
+        FROM tb_shop as A join tb_delivery as B        on A.shop_idx = B.shop_idx
+        join tb_delivery_order O                                    on B.master_code = O.master_code 
+        join tb_order_list OL                                         on O.order_code = OL.order_code
+        LEFT OUTER JOIN tb_delivery_payment as P         on B.master_code = p.master_code AND p.payment_code = 'ER'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y'
+        AND B.state_group = 'A030000' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N') 
+		<if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    <!-- 
+         Admin CS > 반송 상세정보 select
+    -->
+    <select id="selectAdminCsBackDetail" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT A.shop_name AS shopName 
+            , B.master_code        as masterCode
+            , B.shop_idx                  as shopIdx
+            , B.combine_code           as combineCode
+            , B.seller_name              as sellerName
+            , B.seller_phone             as sellerPhone 
+            , B.seller_country_code   as sellerCountryCode
+            , B.seller_country           as sellerCountry
+            , B.seller_city                as sellerCity
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1             as sellerAddr1
+            , B.seller_addr2             as sellerAddr2
+            , IFNULL(B.buyer_firstname,'')        as buyerFirstname
+            , IFNULL(B.buyer_lastname,'')        as buyerLastname
+            , IFNULL(B.buyer_phone,'')            as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code   as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city                as buyerCity 
+            , B.buyer_province         as buyerProvince
+            , B.buyer_zip_code        as buyerZipCode 
+            , B.buyer_addr1            as buyerAddr1
+            , B.buyer_addr2            as buyerAddr2
+            , B.box_length              as boxLength
+            , B.box_width               as boxWidth
+            , B.box_height              as boxHeight
+            , B.box_unit                 as boxUnit
+            , B.box_weight             as boxWeight
+            , B.weight_unit            as weightUnit
+            , B.state
+            , FN_LOCALE_MESSAGE('A030000', B.state, #{locale}) as stateStr
+            ,(FN_GET_STATE_CSS(B.state)) as stateStrCss
+		    ,FN_LOCALE_MESSAGE('A030000',B.reason ,#{locale}) AS reasonStr
+            ,(FN_GET_STATE_CSS(B.reason)) as reasonStrCss
+            , P.pay_state                as payState
+            , sum(P.pay_weight)     as payWeight
+            , sum(P.payment)         as payment
+            , P.invoice       
+            ,(case when P.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', P.courier, #{locale})
+                   when P.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', P.courier, #{locale})
+                   else '' end) as courier
+            , (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)  as rankPrice
+            , (sum(P.payment) - (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)) as paymentTotal
+            ,(select max(location_id) from tb_order_detail where order_idx = OL.order_idx) as locationId
+            ,OL.order_code			as orderCode
+            ,OL.order_name          as orderName
+            ,S.quantity					as quantity
+            ,(select max(goods) from tb_order_detail where order_idx = OL.order_idx) as goods
+			, DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDateStr
+			, sum(OD.price) AS orderPrice
+			, max(OD.customer_name) AS customerName
+			,(select sum(pp.payment) from tb_delivery_payment as pp where pp.master_code = P.master_code and payment_code in ('ND','NA')) as deliveryAmount
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_sku S on B.master_code = S.master_code
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        join tb_order_detail OD on OL.order_idx = OD.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = P.master_code AND payment_code = 'ER'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N')
+        AND B.state_group = 'A030000'
+        <if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+        Admin CS > 반송 관세 리스트 select count
+    -->
+    <select id="selectPopAdminCsBackSkuCount" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="int">
+        SELECT count(O.order_idx)
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code='ER'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group = 'A030000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    <!-- 
+         Admin CS > 반송 관세 리스트 select
+    -->
+    <select id="selectPopAdminCsBackSkuList" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="com.shopify.admin.cs.popup.AdminCsPopupData">
+        SELECT B.order_idx       as orderIdx
+                ,B.goods_code     as goodsCode
+                ,B.goods
+                ,B.goods_type      as goodsType
+                ,CASE WHEN #{locale} = 'ko' THEN (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+					  WHEN #{locale} = 'en' THEN (SELECT code_ename FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+	             ELSE (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type) 
+                  END AS goodsTypeStr
+                ,B.goods_sku       as goodsSku
+                ,B.price
+                ,B.unit_cost         as unitCost
+                ,B.taxable
+                ,B.barcode
+                ,B.origin
+                ,B.hscode
+                ,B.box_length       as boxLength
+                ,B.box_width        as boxWidth
+                ,B.box_height        as boxHeight
+                ,B.box_unit           as boxUnit
+                ,B.weight
+                ,B.weight_unit       as weightUnit
+                ,B.quantity
+                , DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d')  as regDate
+                ,(select max(invoice) from tb_delivery_payment where master_code = D.master_code) as invoice
+                ,(select max(FN_LOCALE_MESSAGE('B020000', courier, #{locale})) from tb_delivery_payment where master_code = D.master_code) as courier
+                ,(select max(IFNULL(buyer_firstname,'')) from tb_delivery where master_code = D.master_code) as buyerFirstname
+                ,(select max(IFNULL(buyer_lastname,'')) from tb_delivery where master_code = D.master_code) as buyerLastname
+                , O.order_code       as orderCode
+                , (select DATE_FORMAT(IFNULL(MAX(order_date),now()),'%Y-%m-%d') from tb_order_list where shop_idx = A.shop_idx and order_idx = O.order_idx) as orderDate
+                , D.master_code     as masterCode
+                , p.payment
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code ='ER'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group ='A030000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+    	Admin CS >교환 리스트 count
+    -->
+    <select id="selectAdminCsExchangeCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*) AS shipmentCount 
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_order O  on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code = 'NA'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y'
+        AND B.state_group = 'A040000'
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N') 
+		<if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+         Admin CS > 교환 상세정보 select
+    -->
+    <select id="selectAdminCsExchangeDetail" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT A.shop_name AS shopName 
+            , B.master_code        as masterCode
+            , B.shop_idx                  as shopIdx
+            , B.combine_code           as combineCode
+            , B.seller_name              as sellerName
+            , B.seller_phone             as sellerPhone 
+            , B.seller_country_code   as sellerCountryCode
+            , B.seller_country           as sellerCountry
+            , B.seller_city                as sellerCity
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1             as sellerAddr1
+            , B.seller_addr2             as sellerAddr2
+            , IFNULL(B.buyer_firstname,'')        as buyerFirstname
+            , IFNULL(B.buyer_lastname,'')        as buyerLastname
+            , IFNULL(B.buyer_phone,'')            as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code   as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city                as buyerCity 
+            , B.buyer_province         as buyerProvince
+            , B.buyer_zip_code        as buyerZipCode 
+            , B.buyer_addr1            as buyerAddr1
+            , B.buyer_addr2            as buyerAddr2
+            , B.box_length              as boxLength
+            , B.box_width               as boxWidth
+            , B.box_height              as boxHeight
+            , B.box_unit                 as boxUnit
+            , B.box_weight             as boxWeight
+            , B.weight_unit            as weightUnit
+            , B.state
+            , FN_LOCALE_MESSAGE('A040000', B.state, #{locale}) as stateStr
+            ,(FN_GET_STATE_CSS(B.state)) as stateStrCss  
+            , P.pay_state                as payState
+            , sum(P.pay_weight)     as payWeight
+            , sum(P.payment)         as payment
+            , P.invoice       
+            ,(case when P.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', P.courier, #{locale})
+                   when P.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', P.courier, #{locale})
+                   else '' end) as courier
+            , (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01) as rankPrice
+            , (sum(P.payment) - (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)) as paymentTotal
+            ,(select max(location_id) from tb_order_detail where order_idx = OL.order_idx) as locationId
+            ,OL.order_code			as orderCode
+            ,OL.order_name          as orderName
+            ,S.quantity					as quantity
+            ,(select max(goods) from tb_order_detail where order_idx = OL.order_idx) as goods
+			, DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDateStr
+			, sum(OD.price) AS orderPrice
+			, max(OD.customer_name) AS customerName
+			,(select sum(pp.payment) from tb_delivery_payment as pp where pp.master_code = P.master_code and payment_code in ('ND','NA')) as deliveryAmount
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_sku S on B.master_code = S.master_code
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        join tb_order_detail OD on OL.order_idx = OD.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = P.master_code AND payment_code = 'NA'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N')
+        AND B.state_group = 'A040000'
+        <if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+         Admin CS > 교환 관세 리스트 select count
+    -->
+    <select id="selectPopAdminCsExchangeSkuCount" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="int">
+        SELECT count(O.order_idx)
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code='NA'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group = 'A040000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+         Admin CS > 교환 관세 리스트 select
+    -->
+    <select id="selectPopAdminCsExchangeSkuList" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="com.shopify.admin.cs.popup.AdminCsPopupData">
+        SELECT B.order_idx       as orderIdx
+                ,B.goods_code     as goodsCode
+                ,B.goods
+                ,B.goods_type      as goodsType
+                ,CASE WHEN #{locale} = 'ko' THEN (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+					  WHEN #{locale} = 'en' THEN (SELECT code_ename FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+	             ELSE (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type) 
+                  END AS goodsTypeStr
+                ,B.goods_sku       as goodsSku
+                ,B.price
+                ,B.unit_cost         as unitCost
+                ,B.taxable
+                ,B.barcode
+                ,B.origin
+                ,B.hscode
+                ,B.box_length       as boxLength
+                ,B.box_width        as boxWidth
+                ,B.box_height        as boxHeight
+                ,B.box_unit           as boxUnit
+                ,B.weight
+                ,B.weight_unit       as weightUnit
+                ,B.quantity
+                , DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDate
+                ,(select max(invoice) from tb_delivery_payment where master_code = D.master_code) as invoice
+                ,(select max(FN_LOCALE_MESSAGE('B020000', courier, #{locale})) from tb_delivery_payment where master_code = D.master_code) as courier
+                ,(select max(IFNULL(buyer_firstname,'')) from tb_delivery where master_code = D.master_code) as buyerFirstname
+                ,(select max(IFNULL(buyer_lastname,'')) from tb_delivery where master_code = D.master_code) as buyerLastname
+                , O.order_code       as orderCode
+                , (select DATE_FORMAT(IFNULL(MAX(order_date),now()),'%Y-%m-%d') from tb_order_list where shop_idx = A.shop_idx and order_idx = O.order_idx) as orderDate
+                , D.master_code     as masterCode
+                , p.payment
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code ='NA'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group ='A040000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+    	Admin CS >반품 리스트 count
+    -->
+    <select id="selectAdminCsReturnCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*) AS shipmentCount 
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code = 'NA'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y'
+        AND B.state_group = 'A050000' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N') 
+		<if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+         Admin CS > 반품상세정보 select
+    -->
+    <select id="selectAdminCsReturnDetail" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT A.shop_name AS shopName 
+            , B.master_code        as masterCode
+            , B.shop_idx                  as shopIdx
+            , B.combine_code           as combineCode
+            , B.seller_name              as sellerName
+            , B.seller_phone             as sellerPhone 
+            , B.seller_country_code   as sellerCountryCode
+            , B.seller_country           as sellerCountry
+            , B.seller_city                as sellerCity
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1             as sellerAddr1
+            , B.seller_addr2             as sellerAddr2
+            , IFNULL(B.buyer_firstname,'')        as buyerFirstname
+            , IFNULL(B.buyer_lastname,'')        as buyerLastname
+            , IFNULL(B.buyer_phone,'')            as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code   as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city                as buyerCity 
+            , B.buyer_province         as buyerProvince
+            , B.buyer_zip_code        as buyerZipCode 
+            , B.buyer_addr1            as buyerAddr1
+            , B.buyer_addr2            as buyerAddr2
+            , B.box_length              as boxLength
+            , B.box_width               as boxWidth
+            , B.box_height              as boxHeight
+            , B.box_unit                 as boxUnit
+            , B.box_weight             as boxWeight
+            , B.weight_unit            as weightUnit
+            , B.state
+            , FN_LOCALE_MESSAGE('A050000', B.state, #{locale}) as stateStr
+            ,(FN_GET_STATE_CSS(B.state)) as stateStrCss 
+            , P.pay_state                as payState
+            , sum(P.pay_weight)     as payWeight
+            , sum(P.payment)         as payment
+            , P.invoice       
+            ,(case when P.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', P.courier, #{locale})
+                   when P.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', P.courier, #{locale})
+                   else '' end) as courier
+            , (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01) as rankPrice
+            , (sum(P.payment) - (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)) as paymentTotal
+            ,(select max(location_id) from tb_order_detail where order_idx = OL.order_idx) as locationId
+            ,OL.order_code			as orderCode
+            ,OL.order_name          as orderName
+            ,S.quantity					as quantity
+            ,(select max(goods) from tb_order_detail where order_idx = OL.order_idx) as goods
+			, DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDateStr
+			, sum(OD.price) AS orderPrice
+			, max(OD.customer_name) AS customerName
+			,(select sum(pp.payment) from tb_delivery_payment as pp where pp.master_code = P.master_code and payment_code in ('ND','NA')) as deliveryAmount
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_sku S on B.master_code = S.master_code
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        join tb_order_detail OD on OL.order_idx = OD.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = P.master_code AND payment_code = 'NA'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N')
+        AND B.state_group = 'A050000'
+        <if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+         Admin CS > 반품 관세 리스트 select count
+    -->
+    <select id="selectPopAdminCsReturnSkuCount" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="int">
+        SELECT count(O.order_idx)
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code='NA'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group = 'A050000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    <!-- 
+         Admin CS > 반품 관세 리스트 select
+    -->
+    <select id="selectPopAdminCsReturnSkuList" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="com.shopify.admin.cs.popup.AdminCsPopupData">
+        SELECT B.order_idx       as orderIdx
+                ,B.goods_code     as goodsCode
+                ,B.goods
+                ,B.goods_type      as goodsType
+                ,CASE WHEN #{locale} = 'ko' THEN (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+					  WHEN #{locale} = 'en' THEN (SELECT code_ename FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+	             ELSE (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type) 
+                  END AS goodsTypeStr
+                ,B.goods_sku       as goodsSku
+                ,B.price
+                ,B.unit_cost         as unitCost
+                ,B.taxable
+                ,B.barcode
+                ,B.origin
+                ,B.hscode
+                ,B.box_length       as boxLength
+                ,B.box_width        as boxWidth
+                ,B.box_height        as boxHeight
+                ,B.box_unit           as boxUnit
+                ,B.weight
+                ,B.weight_unit       as weightUnit
+                ,B.quantity
+                , DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDate
+                ,(select max(invoice) from tb_delivery_payment where master_code = D.master_code) as invoice
+                ,(select max(FN_LOCALE_MESSAGE('B020000', courier, #{locale})) from tb_delivery_payment where master_code = D.master_code) as courier
+                ,(select max(IFNULL(buyer_firstname,'')) from tb_delivery where master_code = D.master_code) as buyerFirstname
+                ,(select max(IFNULL(buyer_lastname,'')) from tb_delivery where master_code = D.master_code) as buyerLastname
+                , O.order_code       as orderCode
+                , (select DATE_FORMAT(IFNULL(MAX(order_date),now()),'%Y-%m-%d') from tb_order_list where shop_idx = A.shop_idx and order_idx = O.order_idx) as orderDate
+                , D.master_code     as masterCode
+                , p.payment
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code ='NA'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group ='A050000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+    	Admin CS > 추가요금 리스트 count
+    -->
+    <select id="selectAdminCsPaymentCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*) AS shipmentCount 
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code = 'EW'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y'
+        AND B.state_group = 'A060000'
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N') 
+		<if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+         Admin CS > 추가요금 상세정보 select
+    -->
+    <select id="selectAdminCsPaymentDetail" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT A.shop_name AS shopName 
+            , B.master_code        as masterCode
+            , B.shop_idx                  as shopIdx
+            , B.combine_code           as combineCode
+            , B.seller_name              as sellerName
+            , B.seller_phone             as sellerPhone 
+            , B.seller_country_code   as sellerCountryCode
+            , B.seller_country           as sellerCountry
+            , B.seller_city                as sellerCity
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1             as sellerAddr1
+            , B.seller_addr2             as sellerAddr2
+            , IFNULL(B.buyer_firstname,'')        as buyerFirstname
+            , IFNULL(B.buyer_lastname,'')        as buyerLastname
+            , IFNULL(B.buyer_phone,'')            as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code   as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city                as buyerCity 
+            , B.buyer_province         as buyerProvince
+            , B.buyer_zip_code        as buyerZipCode 
+            , B.buyer_addr1            as buyerAddr1
+            , B.buyer_addr2            as buyerAddr2
+            , B.box_length              as boxLength
+            , B.box_width               as boxWidth
+            , B.box_height              as boxHeight
+            , B.box_unit                 as boxUnit
+            , B.box_weight             as boxWeight
+            , B.weight_unit            as weightUnit
+            , B.state
+            , FN_LOCALE_MESSAGE('A060000', B.state, #{locale}) as stateStr
+            ,(FN_GET_STATE_CSS(B.state)) as stateStrCss
+            , pay_state                as payState
+            , sum(P.pay_weight)     as payWeight
+            , sum(P.payment)         as payment
+            , P.invoice       
+            ,(case when P.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', P.courier, #{locale})
+                   when P.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', P.courier, #{locale})
+                   else '' end) as courier
+            , (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01) as rankPrice
+            , (sum(P.payment) - (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)) as paymentTotal
+            , (select max(location_id) from tb_order_detail where order_idx = OL.order_idx) as locationId
+            , OL.order_code			as orderCode
+            , OL.order_name          as orderName
+            , S.quantity					as quantity
+            , (select max(goods) from tb_order_detail where order_idx = OL.order_idx) as goods
+			, DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDateStr
+			, sum(OD.price) AS orderPrice
+			, max(OD.customer_name) AS customerName
+			,(select sum(pp.payment) from tb_delivery_payment as pp where pp.master_code = P.master_code and payment_code in ('ND','NA')) as deliveryAmount
+			,A.email
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_sku S on B.master_code = S.master_code
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        join tb_order_detail OD on OL.order_idx = OD.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = P.master_code AND payment_code = 'EW'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N')
+        AND B.state_group = 'A060000'
+        <if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- 
+         Admin CS > 추가요금 상세정보 select List
+    -->
+    <select id="selectAdminCsPaymentList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT 
+			A.email
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_sku S on B.master_code = S.master_code
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        <if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+        <if test="masterCodeList != null and masterCodeList != '' ">
+            AND B.master_code IN
+            <foreach collection="masterCodeList" item="item" index="index" separator="," open="(" close=")">
+                #{item,jdbcType=VARCHAR}
+            </foreach>
+        </if>
+    </select>
+    
+    <!-- 
+         Admin CS > 추가요금 관세 리스트 select count
+    -->
+    <select id="selectPopAdminCsPaymentSkuCount" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="int">
+        SELECT count(O.order_idx)
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code='EW'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group = 'A060000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+
+    </select>
+    <!-- 
+         Admin CS > 추가요금 관세 리스트 select
+    -->
+    <select id="selectPopAdminCsPaymentSkuList" parameterType="com.shopify.admin.cs.popup.AdminCsPopupData" resultType="com.shopify.admin.cs.popup.AdminCsPopupData">
+        SELECT B.order_idx       as orderIdx
+                ,B.goods_code     as goodsCode
+                ,B.goods
+                ,B.goods_type      as goodsType
+                ,CASE WHEN #{locale} = 'ko' THEN (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+					  WHEN #{locale} = 'en' THEN (SELECT code_ename FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type)
+	             ELSE (SELECT code_kname FROM tb_use_code where code_group = 'H040000' AND code_etc = B.goods_type) 
+                  END AS goodsTypeStr
+                ,B.goods_sku       as goodsSku
+                ,B.price
+                ,B.unit_cost         as unitCost
+                ,B.taxable
+                ,B.barcode
+                ,B.origin
+                ,B.hscode
+                ,B.box_length       as boxLength
+                ,B.box_width        as boxWidth
+                ,B.box_height        as boxHeight
+                ,B.box_unit           as boxUnit
+                ,B.weight
+                ,B.weight_unit       as weightUnit
+                ,B.quantity
+                , DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDate
+                ,(select max(invoice) from tb_delivery_payment where master_code = D.master_code) as invoice
+                ,(select max(FN_LOCALE_MESSAGE('B020000', courier, #{locale})) from tb_delivery_payment where master_code = D.master_code) as courier
+                ,(select max(IFNULL(buyer_firstname,'')) from tb_delivery where master_code = D.master_code) as buyerFirstname
+                ,(select max(IFNULL(buyer_lastname,'')) from tb_delivery where master_code = D.master_code) as buyerLastname
+                , O.order_code       as orderCode
+                , (select DATE_FORMAT(IFNULL(MAX(order_date),now()),'%Y-%m-%d') from tb_order_list where shop_idx = A.shop_idx and order_idx = O.order_idx) as orderDate
+                , D.master_code     as masterCode
+                , p.payment
+        FROM tb_shop as A join tb_delivery as D on A.shop_idx = D.shop_idx 
+        join tb_delivery_order as O on O.master_code = D.master_code
+        join tb_delivery_sku as B on O.order_idx = B.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = p.master_code AND p.payment_code ='EW'
+        WHERE O.hide_yn = 'N'  
+        AND D.state_group ='A060000'
+        <if test="masterCode != null and masterCode != ''">
+			AND D.master_code = #{masterCode}
+		</if>
+    </select>
+    
+    <!-- CS 관리> Excel목록 count -->
+    <select id="selectExcelListCount" parameterType="com.shopify.admin.cs.AdminCsData" resultType="int">
+        SELECT count(*)
+              FROM tb_shop AS A JOIN tb_delivery AS B ON A.shop_idx = B.shop_idx
+                                JOIN tb_delivery_order O ON B.master_code = O.master_code
+                                JOIN tb_order_list OL ON O.order_code = OL.order_code
+                     LEFT OUTER JOIN tb_delivery_payment AS P ON B.master_code = p.master_code AND p.payment_code = 'ER'
+		     WHERE O.hide_yn = 'N' AND
+	               OL.hide_yn = 'Y' AND
+	               OL.order_idx IN (SELECT order_idx FROM tb_order_detail WHERE order_idx = OL.order_idx AND del_yn = 'N') AND
+	               B.State_group = 'A030000' 
+		<include refid="searchCs"></include>
+    </select>
+    
+    <select id="selectExcelList" parameterType="com.shopify.admin.cs.AdminCsData" resultType="com.shopify.admin.cs.AdminCsData">
+        SELECT A.shop_name AS shopName 
+            , B.master_code        as masterCode
+            , B.shop_idx                  as shopIdx
+            , B.combine_code           as combineCode
+            , B.seller_name              as sellerName
+            , B.seller_phone             as sellerPhone 
+            , B.seller_country_code   as sellerCountryCode
+            , B.seller_country           as sellerCountry
+            , B.seller_city                as sellerCity
+            , B.seller_zip_code         as sellerZipCode
+            , B.seller_addr1             as sellerAddr1
+            , B.seller_addr2             as sellerAddr2
+            , IFNULL(B.buyer_firstname,'')        as buyerFirstname
+            , IFNULL(B.buyer_lastname,'')        as buyerLastname
+            , IFNULL(B.buyer_phone,'')            as buyerPhone
+            , B.buyer_email             as buyerEmail
+            , B.buyer_country_code   as buyerCountryCode
+            , B.buyer_country           as buyerCountry
+            , B.buyer_city                as buyerCity 
+            , B.buyer_province         as buyerProvince
+            , B.buyer_zip_code        as buyerZipCode 
+            , B.buyer_addr1            as buyerAddr1
+            , B.buyer_addr2            as buyerAddr2
+            , B.box_length              as boxLength
+            , B.box_width               as boxWidth
+            , B.box_height              as boxHeight
+            , B.box_unit                 as boxUnit
+            , B.box_weight             as boxWeight
+            , B.weight_unit            as weightUnit
+            , B.state
+            , FN_LOCALE_MESSAGE('A020000', B.state, #{locale}) as stateStr
+            ,(FN_GET_STATE_CSS(B.state)) as stateStrCss
+		    ,FN_LOCALE_MESSAGE('A030000',B.reason ,#{locale}) AS reasonStr
+            ,(FN_GET_STATE_CSS(B.reason)) as reasonStrCss
+            , P.pay_state                as payState
+            , sum(P.pay_weight)     as payWeight
+            , P.pay_weight          as singlePayWeight
+            , P.pay_weight_unit     as singlePayWeightUnit 
+            , sum(P.payment)         as payment
+            , P.invoice
+            , FN_LOCALE_MESSAGE('B010000', P.courier_company, #{locale}) AS courierCompany         
+            ,(case when P.courier_company = 'B010020' then FN_LOCALE_MESSAGE('B040000', P.courier, #{locale})
+                   when P.courier_company = 'B010010' then FN_LOCALE_MESSAGE('B020000', P.courier, #{locale})
+                   else '' end) as courier
+            , (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)  as rankPrice
+            , (sum(P.payment) - (sum(P.payment) * FN_DISCOUNT_COURIER(#{email},P.courier_company,P.courier) * 0.01)) as paymentTotal
+            ,(select max(location_id) from tb_order_detail where order_idx = OL.order_idx) as locationId
+            ,OL.order_code			as orderCode
+            ,OL.order_name          as orderName
+            ,S.quantity					as quantity
+            ,(select max(goods) from tb_order_detail where order_idx = OL.order_idx) as goods
+			, DATE_FORMAT(IFNULL(B.reg_date,now()),'%Y-%m-%d') as regDateStr
+			, sum(OD.price) AS orderPrice
+			, max(OD.customer_name) AS customerName
+			, S.goods_type AS goodsType
+			, S.goods_code AS goodsCode
+			, S.goods_sku AS goodsSku
+			, S.weight AS goodsWeight
+			, S.weight_unit AS goodsWeightUnit
+			, S.hscode AS hsCode
+			, S.origin AS origin
+			, S.price AS goodSPrice
+        FROM tb_shop as A join tb_delivery as B on A.shop_idx = B.shop_idx
+        join tb_delivery_sku S on B.master_code = S.master_code
+        join tb_delivery_order O on B.master_code = O.master_code 
+        join tb_order_list OL on O.order_code = OL.order_code  and A.shop_idx = OL.shop_idx 
+        join tb_order_detail OD on OL.order_idx = OD.order_idx
+        LEFT OUTER JOIN tb_delivery_payment as P on B.master_code = P.master_code AND payment_code = 'ER'        
+        WHERE O.hide_yn = 'N' 
+        AND OL.hide_yn = 'Y' 
+        AND OL.order_idx in (select order_idx from tb_order_detail where order_idx = OL.order_idx and del_yn = 'N')
+        AND B.state_group = 'A030000'
+        <include refid="searchCs"></include>
+        <if test="masterCode != null and masterCode != ''">
+			AND B.master_code = #{masterCode}
+		</if>
+		<if test="currentPage != 0">
+	      	<if test="startRow neq totalPageNum"> 
+		    	LIMIT #{startRow}, #{pageSize}
+		    </if>
+        </if>
+    </select>
+    <!-- 2020-02-20 수정끝 -->
+    
+    
+</mapper>

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminDeliveryMapper">
+	
+	<sql id="searchShipCompany">
+	    <if test="searchId != null and searchId != ''">
+	        AND id = #{searchId}
+	    </if>
+	    
+	    <if test="searchWord != null and searchWord != ''"> 
+	        <choose>
+	        <when test="searchOrder == 'code_name'">
+	             AND (code_kname LIKE '%' #{searchWord} '%' or code_ename LIKE '%' #{searchWord} '%') 
+	        </when>
+	        </choose>
+	    </if> 
+	</sql>
+	
+	<select id="selectCompanyCount" parameterType="com.shopify.admin.delivery.DeliveryData" resultType="int">
+        select count(*) FROM tb_shipping_company a, tb_use_code b
+        where a.code=b.code_etc 
+            and b.code_group=(select code_id from tb_use_code where code_etc=a.id)
+         
+        <include refid="searchShipCompany"></include>
+         
+    </select>
+	
+	<select id="chkShipCompany" parameterType="com.shopify.admin.delivery.DeliveryData" resultType="int" >
+		SELECT count(*) AS ShipCompanyCount FROM tb_shipping_company
+		WHERE id = #{shipId} AND code = #{code}
+	</select>
+	
+	<select id="selectShipCompany" parameterType="com.shopify.admin.delivery.DeliveryData" resultType="com.shopify.admin.delivery.DeliveryData" >
+		select count(*) as shipcompanycount from tb_shipping_company
+		where id = #{shipid} and code = #{code}
+	</select>
+	
+	<select id="selectShipService" parameterType="com.shopify.admin.delivery.DeliveryData" resultType="com.shopify.admin.delivery.DeliveryData" >
+        select 
+		    code_id, code_group, code, code_kname
+		from tb_shipping_company a 
+		join tb_use_code b on a.code=b.code_etc
+		where a.id=#{shipid}
+		    and code_group=(select code_id from tb_use_code where code_etc=a.id) 
+		    and a.use_yn='Y'
+		    and b.use_yn='Y'
+    </select>
+    
+    <select id="listShipCompany"  parameterType="com.shopify.admin.delivery.DeliveryData" resultType="com.shopify.admin.delivery.DeliveryData">
+        select 
+		    id
+		    ,(select if(#{locale} = 'ko', c.code_kname, c.code_ename) from tb_use_code c where c.code_id=a.id) id_name
+		    , code
+		    , code_id
+		    , if(#{locale} = 'ko', b.code_kname, b.code_ename) code_name
+		    , min_delivery_date
+            , max_delivery_date
+		    , a.use_yn
+		FROM tb_shipping_company a, tb_use_code b
+		where a.code=b.code_etc 
+		    and b.code_group=(select code_id from tb_use_code where code_etc=a.id)
+		<include refid="searchShipCompany"></include>
+	        
+		order by a.id, b.code_seq
+        <if test="startRow neq totalPageNum"> 
+            LIMIT #{startRow}, #{pageSize}
+        </if>
+    </select>
+    
+    <select id="selectShipCompanyView"  parameterType="com.shopify.admin.delivery.DeliveryData" resultType="com.shopify.admin.delivery.DeliveryData">
+        select 
+            id
+            , code
+            , min_delivery_date
+            , max_delivery_date
+            , use_yn
+        FROM tb_shipping_company
+        where 1 = 1 
+            and id = #{shipId} and code = #{code}  
+    </select>
+
+    
+    <select id="selectDeliveryCompanyService"  parameterType="com.shopify.admin.delivery.DeliveryData" resultType="com.shopify.admin.delivery.DeliveryData">
+        select 
+		    code_etc, code_ename as codeName, code_id
+		FROM tb_use_code
+		where 1 = 1
+			and code_group = (
+				select code_group from tb_use_code where code_etc=#{codeEtc} limit 1
+			)
+		ORDER BY code_seq
+    </select>
+    
+    <select id="selectCodeId" parameterType="com.shopify.admin.delivery.DeliveryData" resultType="String">
+		Select code_id 
+		FROM tb_use_code  
+		WHERE code_etc = #{code}
+			and code_ref = #{shipId}
+    </select>
+
+	<insert id="insertShipCompany" parameterType="com.shopify.admin.delivery.DeliveryData">
+		INSERT INTO tb_shipping_company  
+			( id
+			     , code
+	             , code_name
+	             , min_delivery_date
+	             , max_delivery_date
+	             , use_yn
+	             ,courier
+			)
+			VALUES 
+		    ( #{shipId}
+				,#{code}
+				,#{codeName}
+				,#{minDeliveryDate}
+				,#{maxDeliveryDate}
+				,#{useYn}
+				,#{codeId}
+		     )
+	</insert>
+	
+	<update id="updateShipCompany" parameterType="com.shopify.admin.delivery.DeliveryData">
+		update tb_shipping_company set use_yn = #{useYn} 
+		<if test="minDeliveryDate != null and minDeliveryDate != ''"> 
+            , min_delivery_date = #{minDeliveryDate}
+            , max_delivery_date = #{maxDeliveryDate}
+        </if>
+		where id = #{shipId} and code = #{code} 
+	</update>
+	
+	<delete id="deleteShipCompany" parameterType="com.shopify.admin.delivery.DeliveryData">
+		delete from tb_shipping_company where id = #{shipId} and code = #{code} 
+	</delete>
+	
+</mapper>

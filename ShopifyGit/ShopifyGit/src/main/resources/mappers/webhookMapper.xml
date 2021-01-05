@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.WebhookMapper">
+	<insert id="insertHook" parameterType="com.shopify.api.ShopifyWebhookData">
+		INSERT INTO tb_webhook  
+							(
+							hook_type
+							,shop_id
+							,shop_domain
+							,order_to_redact
+							)
+							VALUES 
+						        (
+						        #{hookType}
+								,#{shopId}
+								,#{shopDomain}
+								,#{orderToRedact}
+						        )
+	</insert>
+	<insert id="insertHookCustomer" parameterType="com.shopify.api.ShopifyWebhookDataCustomer">
+		INSERT INTO tb_webhook_custmer 
+							(
+							hook_idx
+							,id
+							,email
+							,phone
+							)
+							VALUES 
+						        (
+						        #{hookIdx}
+								,#{id}
+								,#{email}
+								,#{phone}
+						        )
+	</insert>
+	<delete id="deleteShop" parameterType="com.shopify.api.ShopifyWebhookData">
+		DELETE tb_shop 
+		WHERE shop_id = #{shopId} AND email = #{email}
+	</delete>
+
+    <select id="selectOneShopCount" parameterType="com.shopify.api.ShopifyWebhookData" resultType="int">
+		SELECT count(*) AS shopCount FROM tb_shop 
+		WHERE 1=1
+		<if test="shopIdx neq null and shopIdx neq ''.toString()">
+		AND shop_idx = #{shopIdx}
+		</if>
+		<if test="email neq null and email neq ''.toString()">
+		AND email = #{email}
+		</if>
+		<if test="shopId neq null and shopId neq ''.toString()">
+		AND shop_id  = #{shopId}
+		</if>		
+	</select>
+	
+	<select id="selectOneShop"  parameterType="com.shopify.api.ShopifyWebhookData" resultType="com.shopify.api.ShopifyWebhookData">
+        SELECT
+ 			shop_idx 			as shopIdx
+			,email
+			,shop_id 			as shopId
+			,shop_name 		as shopName
+			,ecommerce
+			,access_token 	as accessToken
+			,access_key 		as accessKey
+			,scope
+			,expires_in 		as expiresIn
+			,combine_yn 		as combineYn
+			,account_owner 	as accountOwner
+			,locale
+			,collaborator
+			,use_yn 				as useYn
+			,reg_date 			as regDate
+        FROM tb_shop
+        WHERE 1=1
+        <!-- 메서드 오버로딩으로 다른 메서드를 호출하기 위해 개인적으로 걸어놓은 조건문 -->
+		<if test="shopIdx neq null and shopIdx neq '0' and shopIdx neq ''.toString()">
+		AND shop_idx = #{shopIdx}
+		</if>
+		<if test="email neq null and email neq ''.toString()">
+		AND email = #{email}
+		</if>
+    </select>
+    
+</mapper>

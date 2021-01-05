@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminSellerMapper">
+    <!-- 
+         관리자 > seller > 리스트 검색 퀴리
+    -->
+    <sql id="searchAdminSeller">     
+        <if test="searchRankId != null and searchRankId != ''"> 
+            AND rank_id = #{searchRankId}
+        </if>
+       
+        <if test="searchWord != null and searchWord != ''"> 
+            <choose>
+            <when test="searchType == 'email'">
+                 AND email LIKE '%' #{searchWord} '%'
+            </when>
+            <when test="searchType == 'shopId'">
+                 AND shop_name LIKE '%' #{searchWord} '%'
+            </when>
+            <when test="searchType == 'total'">
+                 AND (email LIKE '%' #{searchWord} '%' or shop_name LIKE '%' #{searchWord} '%')
+            </when>
+            </choose>
+        </if> 
+    </sql>
+    
+    <!-- 
+         관리자 > seller > 리스트 count
+    -->
+    <select id="selectAdminSellerCount" parameterType="com.shopify.admin.seller.AdminSellerData" resultType="int">
+        SELECT count(*) AS cnt FROM (
+            SELECT A.*, B.shop_name, B.shop_id, B.sub_cnt FROM tb_seller A 
+                LEFT OUTER JOIN (
+                    SELECT 
+                        email, MAX(shop_name) shop_name, MAX(shop_id) shop_id, COUNT(*) sub_cnt 
+                    FROM tb_shop 
+                    WHERE del_yn='N'
+                    <if test="searchWord != null and searchWord != ''"> 
+                        <if test="searchType == 'shop_name'">
+                            AND B.shop_name LIKE '%' #{searchWord} '%'
+                        </if>
+                    </if>
+                    GROUP BY email
+                ) B ON A.email = B.email
+        ) T WHERE 1 = 1
+        
+        <include refid="searchAdminSeller"></include>
+    </select>
+
+    <!-- 
+        관리자 > seller > 리스트
+    -->
+    <select id="selectAdminSeller" parameterType="com.shopify.admin.seller.AdminSellerData" resultType="com.shopify.admin.seller.AdminSellerData">
+        SELECT
+            email
+            , seller_id
+            , first_name
+            , last_name
+            , phone_number
+            , company_num
+            , company
+            , company_ename
+            , rank_id
+            , FN_LOCALE_MESSAGE('E010000', T.rank_id, #{userLang}) as rank_name
+            , FN_LOCALE_MESSAGE('E020000', T.shop_status, #{userLang}) as shop_status
+            , use_yn 
+            , shop_name
+            , shop_id
+            , sub_cnt
+            ,DATE_FORMAT(reg_date,'%Y-%m-%d') as regDate
+        FROM (
+            SELECT A.*, B.shop_name, B.shop_id, B.sub_cnt FROM tb_seller A 
+                LEFT OUTER JOIN (
+                    SELECT 
+                        email, MAX(shop_name) shop_name, MAX(shop_id) shop_id, COUNT(*) sub_cnt 
+                    FROM tb_shop 
+                    WHERE del_yn='N'
+                    <if test="searchWord != null and searchWord != ''"> 
+                        <if test="searchType == 'shop_name'">
+                            AND B.shop_name LIKE '%' #{searchWord} '%'
+                        </if>
+                    </if>
+                    GROUP BY email
+                ) B ON A.email = B.email
+        ) T WHERE 1 = 1
+        <include refid="searchAdminSeller"></include>
+        <choose>
+            <when test="sortOrder == 'ASCregDate'">ORDER BY regDate ASC</when>
+            <when test="sortOrder == 'DECregDate'">ORDER BY regDate DESC</when>
+            
+            <otherwise>ORDER BY regDate DESC</otherwise>
+        </choose>        
+        <if test="currentPage != 0">
+            <if test="startRow neq totalPageNum"> 
+            LIMIT #{startRow}, #{pageSize}
+            </if>
+        </if>  
+    </select>
+    
+    
+     <select id="selectDiscountSellerList" parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.shop.ShopData">
+        SELECT se.email, sh.shop_name, sh.domain
+		FROM tb_seller se
+		JOIN  tb_shop sh ON se.email = sh.email -- AND sh.use_yn = 'Y'
+		WHERE se.use_yn = 'Y'
+		<if test="email != null and email != ''"> 
+          and se.email = #{email}
+        </if>
+        <if test="searchType == 'shopId'">
+        	<if test="searchWord != null and searchWord != ''">
+        		and sh.shop_name = #{searchWord}
+        	</if>
+        </if>
+        <if test="searchType == 'email'">
+        	<if test="searchWord != null and searchWord != ''">
+        		and sh.email = #{searchWord}
+        	</if>
+        </if>
+		order by sh.shop_name
+    </select>
+        
+    <select id="selectCourierListForeign" parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.api.ShopifyOutApiDataCarrier">
+        SELECT 
+			sh.id
+			, FN_LOCALE_MESSAGE('B010000', sh.id , #{locale}) as comName
+			, sh.code
+			, sh.code_name
+		FROM tb_shipping_company sh
+		WHERE service_area = 'F' 
+		<if test="zoneCodeId != null and zoneCodeId != ''"> 
+          and id = #{zoneCodeId}
+        </if>
+        <if test="zoneCodeGroup != null and zoneCodeGroup != ''"> 
+          and code = #{zoneCodeGroup}
+        </if>
+		order by id, code_name
+    </select>
+    
+    <select id="selectDiscountList"  parameterType="com.shopify.admin.price.PriceData" resultType="com.shopify.order.popup.OrderCourierData">
+		select
+            start_date
+            , end_date 
+		    , email
+		    , id
+		    , code
+		    , discount
+		from tb_seller_discount
+		where 1=1
+		<if test="email != null and email != ''"> 
+            and email = #{email}
+		</if>
+		<if test="zoneCodeId != null and zoneCodeId != ''"> 
+            and id = #{zoneCodeId}
+		</if>
+		<if test="zoneCodeGroup != null and zoneCodeGroup != ''"> 
+            and code = #{zoneCodeGroup}
+		</if>
+		<if test="nowDate != null and nowDate != ''"> 
+        <![CDATA[
+			and start_date <= #{nowDate}
+			and end_date >= #{nowDate}
+		]]>
+		</if>
+		order by email, start_date
+    </select>
+    
+    <select id="selectSellerDiscount"  parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierData">
+		select
+            idx
+            , start_date
+            , end_date 
+		    , email
+		    , id
+		    , code
+		    , discount
+		from tb_seller_discount
+		where email = #{email}
+		    <if test="id != null and id != ''"> 
+                and id = #{id}
+            </if>
+		    <if test="code != null and code != ''"> 
+                and code = #{code}
+            </if>
+            and end_date >= #{nowDate}
+        order by email, id, code, start_date
+    </select>
+    
+    <insert id="insertSellerDiscount"  parameterType="com.shopify.order.popup.OrderCourierData">
+		insert into tb_seller_discount (
+			email
+			, id
+			, code
+			, discount
+			, start_date
+			, end_date
+		) values (
+			#{email}
+			, #{id}
+			, #{code}
+			, #{discount}
+			, #{startDate}
+			, #{endDate}
+		)
+    </insert>
+    
+    <update id="updateSellerDiscount"  parameterType="com.shopify.order.popup.OrderCourierData">
+		update tb_seller_discount set
+			email = #{email}
+			, id = #{id}
+			, code = #{code}
+			, discount = #{discount}
+			, start_date = #{startDate}
+			, end_date  = #{endDate}
+		where idx = #{idx}
+    </update>
+    
+    <!-- 
+        관리자 > seller > 상세보기
+    -->
+    <select id="selectAdminSellerDetail" parameterType="com.shopify.admin.seller.AdminSellerData" resultType="com.shopify.admin.seller.AdminSellerData">
+        SELECT
+            email
+            , seller_id
+            , email_verified
+            , first_name
+            , last_name
+            , phone_number
+            , company
+            , company_ename
+            , company_num
+            , rank_id
+            , shop_status
+            , pay_method as paymentMethod
+            , FN_LOCALE_MESSAGE('E010000', rank_id, #{userLang}) as rank_name
+            , FN_LOCALE_MESSAGE('E020000', shop_status, #{userLang}) as shop_name
+            , FN_LOCALE_MESSAGE('E030000', pay_method, #{userLang}) as payment_name
+            , use_yn
+            , reg_date
+        FROM tb_seller WHERE email = #{email}
+    </select>
+
+    
+    <!-- 
+        관리자 > seller > 상세보기(shop 정보)
+    -->
+    <select id="selectAdminShopList" parameterType="com.shopify.admin.seller.AdminShopData" resultType="com.shopify.admin.seller.AdminShopData">
+        SELECT 
+            shop_idx
+            , email
+            , shop_id
+            , shop_name
+            , ecommerce
+            , access_token
+            , access_key
+            , scope
+            , expires_in
+            , combine_yn
+            , account_owner
+            , locale
+            , collaborator
+            , use_yn
+            , billing_yn
+            , active_yn				as activeYn
+            , del_yn
+            , reg_date
+        FROM tb_shop WHERE del_yn='N' AND email = #{email}
+    </select>
+    
+    <!-- 
+        관리자 > seller > 랭크 업데이트
+    -->
+    <update id="updateSellerStatus" parameterType="com.shopify.admin.seller.SellerDiscountDateData">
+        UPDATE tb_seller 
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="shopStatus != null and shopStatus != ''">shop_status = #{shopStatus}, </if>
+			<if test="paymentMethod != null and paymentMethod != ''">pay_method = #{paymentMethod},</if>
+		</trim>
+   		WHERE email = #{email}
+    </update>
+    
+    <update id="updateSellerDiscountEndDate" parameterType="com.shopify.admin.seller.SellerDiscountDateData">
+		UPDATE tb_seller_discount
+		SET end_date = #{endDate}
+		WHERE email = #{email}
+		AND end_date = '9999-12-31'
+    </update>
+    
+    <!-- 
+        관리자 > seller > 랭크 업데이트 로그
+    -->
+    <update id="insertSellerRankLog" parameterType="com.shopify.admin.seller.AdminSellerData">
+        insert into tb_seller_rank_log(email, rank_id, edit_admin) values(#{email}, #{rankId}, #{editAdmin})
+    </update>
+    
+    <!-- 
+        관리자 > seller > 랭크 업데이트 로그 리스트
+    -->
+    <select id="selectSellerRankLog" parameterType="com.shopify.admin.seller.AdminSellerData" resultType="com.shopify.admin.seller.AdminSellerData">
+        SELECT 
+            email
+            , rank_id
+            , shop_status
+            , FN_LOCALE_MESSAGE('E010000', rank_id, #{userLang}) as rank_name
+            , FN_LOCALE_MESSAGE('E020000', shop_status, #{userLang}) as shopStatus
+            , FN_LOCALE_MESSAGE('E030000', pay_method, #{userLang}) as paymentMethod
+            , edit_admin 
+            , reg_date
+       FROM tb_seller_rank_log 
+       WHERE email = #{email} 
+       order by log_idx desc
+    </select>
+
+    <!-- 
+        관리자 > seller > shop 결제모드 업데이트
+    -->
+    <update id="updateShopBilling" parameterType="com.shopify.admin.seller.AdminShopData">
+        UPDATE tb_shop SET billing_yn = #{billingYn} WHERE shop_idx = #{shopIdx}		
+    </update>
+    
+    <update id="updateActive" parameterType="com.shopify.admin.seller.AdminShopData">
+        UPDATE tb_shop SET active_yn = #{activeYn} WHERE shop_idx = #{shopIdx}		
+    </update>
+    
+    
+</mapper>

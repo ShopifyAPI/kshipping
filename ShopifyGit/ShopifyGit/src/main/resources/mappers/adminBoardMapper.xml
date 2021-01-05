@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminBoardMapper">
+	
+	<!-- 
+         admin > board > 리스트 검색 퀴리(Q&A)
+    -->
+    <sql id="searchBoardQna">
+        <if test="idx != null and idx != 0">
+			AND idx = #{idx}
+		</if>
+		<if test="searchWord != null and searchWord != '' ">
+			AND title LIKE '%' #{searchWord} '%'
+		</if>
+        <if test='searchType != null and searchType != "" '>
+        	<if test="searchType != 'D020000'">
+        		AND part =  #{searchType}
+        	</if>
+		</if>
+    </sql>
+    
+    <!-- 
+         seller > board > 리스트 검색 퀴리(FAQ)
+    -->
+    <sql id="searchBoardFaq">
+        <if test="idx != null and idx != 0">
+			AND idx = #{idx}
+		</if>
+        <if test='searchType != null and searchType !="" and searchType != "D020000" '>
+			AND part =  #{searchType}
+		</if>
+		<if test="searchWord != null and searchWord != '' ">
+			AND content LIKE '%' #{searchWord} '%'
+		</if>
+    </sql>
+    
+	
+	<select id="selectAllQna"  parameterType="com.shopify.admin.board.AdminBoardData" resultType="com.shopify.admin.board.AdminBoardData">
+        SELECT
+	         C.idx
+	        ,C.ref_idx AS refIdx 
+		    ,C.seq
+		    ,C.division
+		    ,FN_LOCALE_MESSAGE('D020000',C.part ,#{locale}) AS partName
+		    ,C.part AS partCode
+		    ,C.title
+		    ,(SELECT A.first_name FROM tb_seller A WHERE A.email = C.writer) AS firstName
+		    ,(SELECT A.last_name FROM tb_seller A WHERE A.email = C.writer) AS lastName 
+		    ,C.content
+		    ,if(C.answer is null,'',C.answer) AS answer
+		    ,DATE_FORMAT(C.reg_date, '%Y-%m-%d') AS regDate
+		    ,IF(C.answer IS NULL, FN_LOCALE_MESSAGE('D030000','D030010' ,#{locale}),FN_LOCALE_MESSAGE('D030000','D030030' ,#{locale})) AS status
+		    ,IF(C.answer IS NULL, 'D030010','D030030') AS statusCd
+		    ,DATE_FORMAT(C.ans_date, '%Y-%m-%d') AS ansDate
+		    ,IF(C.up_writer IS NULL , '' , (SELECT B.name FROM tb_admin B WHERE B.email = C.up_writer)) AS admName
+        FROM tb_board C
+		WHERE division = #{division}
+		<include refid="searchBoardQna"></include>
+		ORDER BY reg_date DESC
+		<if test="currentPage != 0">
+            <if test="startRow neq totalPageNum">  
+			LIMIT #{startRow}, #{pageSize}
+			</if>
+		</if>
+    </select>
+    
+    <select id="selectAllQnaCount" parameterType="com.shopify.admin.board.AdminBoardData" resultType="int" >
+		SELECT count(*) AS adminCount 
+		  FROM tb_board 
+		 WHERE division = #{division}
+		<include refid="searchBoardQna"></include>
+	</select>
+    
+    <select id="selectAdmQnaAnswer"  parameterType="com.shopify.admin.board.AdminBoardData" resultType="com.shopify.admin.board.AdminBoardData">
+        SELECT
+	         C.idx
+	        ,C.ref_idx AS refIdx
+		    ,C.seq
+		    ,C.division
+		    ,FN_LOCALE_MESSAGE('D020000',C.part ,#{locale}) AS partName
+		    ,C.part AS partCode
+		    ,C.title
+		    ,C.writer
+		    ,C.content
+		    ,if(C.answer is null,'',C.answer) AS answer
+		    ,DATE_FORMAT(C.reg_date, '%Y-%m-%d') AS regDate
+		    ,IF(C.answer IS NULL, FN_LOCALE_MESSAGE('D030000','D030010' ,#{locale}),FN_LOCALE_MESSAGE('D030000','D030030' ,#{locale})) AS status
+		    ,DATE_FORMAT(C.ans_date, '%Y-%m-%d') AS ansDate 
+		    ,IF(C.up_writer IS NULL , '' , (SELECT B.name FROM tb_admin B WHERE B.email = C.up_writer)) AS upWriter
+		    ,(SELECT FN_LOCALE_MESSAGE('I010000',B.depart ,#{locale}) FROM tb_admin B WHERE B.Email = C.up_writer) AS depart
+        FROM tb_board C
+		WHERE 1 = 1
+		<if test="division != null and division !='' ">
+			AND C.division = #{division}
+		</if>
+		<if test="idx != null and idx != 0">
+			AND C.idx = #{idx}
+		</if>
+    </select>
+    
+    <update id="updateBoardAnswer" parameterType="com.shopify.admin.board.AdminBoardData">
+		UPDATE tb_board 
+		   SET answer = #{answer}
+		     , up_writer = #{upWriter}
+		     , ans_date	= NOW()
+		WHERE idx = #{idx}
+	</update>
+	
+	<select id="selectAllFaq"  parameterType="com.shopify.admin.board.AdminBoardData" resultType="com.shopify.admin.board.AdminBoardData">
+        SELECT
+	         idx
+	        ,ref_idx AS refIdx
+		    ,seq
+		    ,division
+		    ,FN_LOCALE_MESSAGE('D020000',part ,#{locale}) AS partName
+		    ,part AS partCode
+		    ,title
+		    ,writer
+		    ,IF(content IS NULL,'',content) AS content
+		    ,IF(content IS NULL,0, LENGTH(content)) AS contentLength
+		    ,IF(answer IS NULL,'',answer) AS answer
+		    ,IF(answer IS NULL,0, LENGTH(answer)) AS answerLength
+		    ,DATE_FORMAT(reg_date, '%Y-%m-%d') AS regDate
+        FROM tb_board
+		WHERE 1 = 1
+		  AND division = #{division}
+	    <include refid="searchBoardFaq"></include>
+		ORDER BY reg_date DESC
+		<if test="currentPage != 0">
+            <if test="startRow neq totalPageNum"> 
+	            LIMIT #{startRow}, #{pageSize}
+        	</if>
+        </if>
+    </select>
+    
+    <select id="selectAllFaqCount" resultType="int" >
+		SELECT count(*) AS adminCount 
+		  FROM tb_board 
+		 WHERE division = #{division}
+		<include refid="searchBoardFaq"></include>
+	</select>
+    
+    <select id="selectFaqShow"  parameterType="com.shopify.admin.board.AdminBoardData" resultType="com.shopify.admin.board.AdminBoardData">
+        SELECT
+	         idx
+	        ,ref_idx AS refIdx
+		    ,seq
+		    ,division
+		    ,FN_LOCALE_MESSAGE('D020000',part ,#{locale}) AS partName
+		    ,part AS partCode
+		    ,title
+		    ,writer
+		    ,content
+		    ,if(content is null,'',content) AS content
+		    ,IF(content IS NULL,0, LENGTH(content)) AS contentLength
+		    ,if(answer is null,'',answer) AS answer
+		    ,IF(answer IS NULL,0, LENGTH(answer)) AS answerLength
+		    ,DATE_FORMAT(reg_date, '%Y-%m-%d') AS regDate
+		    ,IF(answer IS NULL, '02','95') AS status
+		    ,IF(DATE_FORMAT(reg_date, '%Y-%m-%d') IS NULL ,'',up_date) AS editDate 
+		    ,IF(up_writer IS NULL , '' , up_writer) AS upWriter
+        FROM tb_board
+		WHERE 1 = 1
+		  AND idx = #{idx}		
+    </select>
+    
+    <insert id="insertBoard" parameterType="com.shopify.admin.board.AdminBoardData">
+		INSERT INTO tb_board  
+							( ref_idx
+							, seq
+                            , division
+                            , part
+                            , title
+                            , writer
+                            , content
+                            , answer
+							)
+							VALUES 
+						        ( 1 
+						        , 1
+								,#{division}
+								,#{part}
+								,#{title}
+								,#{writer}
+								,#{content}
+								,#{answer}
+						        )
+	</insert>
+	
+	<update id="updateFaq" parameterType="com.shopify.admin.board.AdminBoardData">
+		UPDATE tb_board 
+		   SET  part = #{partCode}
+			  , content = #{content}
+			  , answer = #{answer}
+			  , up_writer = #{writer}
+			  , up_date	= NOW()			
+		WHERE idx = #{idx}
+	</update>
+	
+	<delete id="deleteBoard" parameterType="String">
+		DELETE FROM tb_board WHERE idx = #{idx}  
+	</delete>
+
+		
+	
+   
+</mapper>

@@ -1,0 +1,40 @@
+.asc-sort {
+	position: relative;
+	cursor: pointer;
+}
+.asc-sort::before {
+	content: "";
+	position: absolute;
+	top : 40%;
+	right:10px;
+	width: 27px;
+	height: 7px;
+	background: url(https://localhost:/img/common/select.png);
+	transform: rotate(180deg);
+}
+.desc-sort {
+	background:url(/img/common/select.png);
+	background-color: #f4f6f8;
+	background-repeat :no-repeat;
+	background-position: center right;
+	cursor:pointer;
+}
+.sort-default {
+	cursor:pointer;
+}
+span.tpu {
+	font-family: verdana;
+	font-size: 10px;
+}
+p.el {
+	display: inline-block;
+	width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+div.tit_wrap > h4,
+div.tit_wrap > span {
+  display: inline-block;
+}

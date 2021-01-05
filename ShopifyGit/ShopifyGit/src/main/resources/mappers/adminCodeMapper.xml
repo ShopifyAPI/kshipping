@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminCodeMapper">
+	
+	<!-- 
+         관리자 > 코드관리 > 리스트 검색 퀴리
+    -->
+    <sql id="searchAdminCode">
+        <if test='searchWord != null and searchWord != ""'>
+            <choose>
+           
+            <when test='searchType == "CodeName" and userlang == "ko"'>
+                 AND code_kname LIKE '%' #{searchWord} '%' 
+            </when>
+            <when test='searchType == "CodeName" and userlang == "en"'>
+                 AND code_id LIKE '%' #{searchWord} '%'
+            </when>
+            <when test='searchType == "Code"'>
+                 AND code_id LIKE '%' #{searchWord} '%' 
+            </when>
+            <when test='searchType == "Discript"'>
+                 AND code_discript LIKE '%' #{searchWord} '%'
+            </when>
+            <when test='searchType == "CodeEtc"'>
+                 AND code_etc LIKE '%' #{searchWord} '%'
+            </when>
+            
+            </choose>
+           </if>
+           
+            <if test='searchCodeGroup != null and searchCodeGroup != ""'> 
+            	AND code_group = #{searchCodeGroup}
+       		</if>	
+
+        
+        <if test='searchUseYn != null and searchUseYn !=""' >
+        	<choose>
+	            <when test='searchUseYn == "Y"'>
+	            	AND use_yn = #{searchUseYn}
+	            </when>
+	            <when test='searchUseYn == "N"'>
+	            	AND use_yn = #{searchUseYn}
+	            </when>
+            </choose>
+        </if>
+    </sql>
+	
+	<select id="selectAdminCodeCount" parameterType="com.shopify.admin.code.AdminCodeData" resultType="int">
+		SELECT count(*) AS cnt 
+		  FROM tb_use_code
+		WHERE 1 = 1
+		<include refid="searchAdminCode"></include>
+	</select>
+	
+	<select id="selectAdminCode" parameterType="com.shopify.admin.code.AdminCodeData" resultType="com.shopify.admin.code.AdminCodeData">
+		SELECT code_id AS codeId
+		     , code_group AS codeGroup
+		     , code_seq AS codeSeq
+		     , code_kname AS codeKname
+		     , code_ename AS codeEname
+		     , code_etc AS codeEtc
+		     , code_discript AS codeDiscript
+		     , use_yn AS codeUseYn
+		     , DATE_FORMAT(reg_date, '%Y-%m-%d') AS codeRegDate
+		  FROM tb_use_code
+		  WHERE 1 = 1
+		  <include refid="searchAdminCode"></include>
+		  
+		  ORDER BY codeId ASC
+		  <if test="startRow neq totalPageNum"> 
+            LIMIT #{startRow}, #{pageSize}
+        </if>	    	 
+    </select>
+    <!-- 코드관리 > code 중복체크 (대분류)-->
+    <select id="chkAdminCodeGroup" resultType="int" >
+		SELECT count(*) AS count 
+		  FROM tb_use_code
+		WHERE code_group = #{codeGroup}
+	</select>
+	
+	<!-- 코드관리 > codeGroup Insert(대분류) -->
+	<insert id="insertAdminCodeGroup" parameterType="com.shopify.admin.code.AdminCodeData" >
+		INSERT INTO tb_use_code
+							( code_id 
+                            , code_group
+                            , code_seq
+                            , code_kname
+                            , code_ename
+                            , code_etc
+                            , code_discript
+                            , use_yn
+                            , reg_date
+                            , code_ref
+							)
+							VALUES 
+						        (#{codeGroup}
+                               , #{codeGroup}
+                               , #{codeSeq}
+                               , #{codeKname}
+                               , #{codeEname}
+                               , #{codeEtc}
+                               , #{codeDiscript}
+                               , #{codeUseYn}
+                               , NOW()
+                               , #{codeEtc}
+						        )
+	</insert>
+	
+	
+	<!-- 코드관리 > code 중복체크 (중분류)-->
+    <select id="chkAdminCodeId" resultType="int" >
+		SELECT count(*) AS count 
+		  FROM tb_use_code
+		WHERE code_id = #{codeId}		   
+	</select>
+	
+	<!-- 코드관리 > codeRef 조회 -->
+	<select id="selectCodeRef" parameterType="com.shopify.admin.code.AdminCodeData" resultType="String">
+		SELECT code_ref
+		FROM tb_use_code
+		WHERE code_id = #{codeGroup}
+		     and code_seq = 0
+	</select>
+	
+	<!-- 코드관리 > codeGroup Insert(중분류) -->
+	<insert id="insertAdminCodeId" parameterType="com.shopify.admin.code.AdminCodeData" >
+		INSERT INTO tb_use_code
+							( code_id 
+                            , code_group
+                            , code_seq
+                            , code_kname
+                            , code_ename
+                            , code_etc
+                            , code_discript
+                            , use_yn
+                            , reg_date
+                            , code_ref
+							)
+							VALUES 
+						        (#{codeId}
+                               , #{codeGroup}
+                               , #{codeSeq}
+                               , #{codeKname}
+                               , #{codeEname}
+                               , #{codeEtc}
+                               , #{codeDiscript}
+                               , #{codeUseYn}
+                               , NOW()
+                               , #{codeRef}
+						        )
+	</insert>
+	
+	<!-- 코드관리 > code 상세조회 -->
+	<select id="selectAdminCodeShow" parameterType="com.shopify.admin.code.popup.AdminCodePopupData" resultType="com.shopify.admin.code.popup.AdminCodePopupData">
+		SELECT code_id AS codeId
+             , code_group AS codeGroup
+             , code_seq AS codeSeq
+             , code_kname AS codeKname
+             , code_ename AS codeEname
+             , code_etc AS codeEtc
+             , code_discript AS codeDiscript
+             , use_yn AS codeUseYn
+             , reg_date AS codeRegDate
+		FROM tb_use_code
+		WHERE 1 = 1
+		  AND code_id = #{codeId}
+	</select>	
+	
+	<!-- 코드관리 > code Update -->
+	<update id="updateAdminCode" parameterType="com.shopify.admin.code.AdminCodeData">
+	UPDATE tb_use_code
+	   SET code_seq = #{codeSeq} 
+          ,code_kname = #{codeKname} 
+          ,code_ename = #{codeEname}
+          ,code_etc = #{codeEtc}
+          ,code_discript = #{codeDiscript} 
+          ,use_yn = #{codeUseYn}          
+	 WHERE 1 = 1
+	  AND code_id = #{codeId}
+	</update>
+	
+	
+	<!-- 코드관리 > code Delete -->  
+	<delete id="deleteAdminCode" parameterType="String">
+		DELETE FROM tb_use_code WHERE code_id = #{codeId}  
+	</delete>
+</mapper>

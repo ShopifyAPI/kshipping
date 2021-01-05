@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.PantosMapper">
+        
+    <!-- 판토스 Tracking 정보 update 처리 프로시저 호출 -->   
+    <select  id="funTrackingProcess" parameterType="com.shopify.api.pantos.PantosTrackingData" resultType="Integer">
+<!--         SELECT FN_TRACKING_PANTOS(#{hblNo}, #{statusCd}, #{deliveryGroupCd}, #{deliveryCd}, #{eventDate})  -->
+        SELECT FN_TRACKING_PANTOS(#{hblNo}, #{statusCd}, #{eventDate}) 
+    </select>
+    
+    <!-- 판토스 주분정보 연동 결과  Log 저장 -->
+    <insert id="insertAPILog" parameterType="Map">
+        INSERT INTO tb_pantos_api_receive  
+                            (master_code
+                            ,param_json
+                            ,return_json
+                            ,create_date
+                            )
+                            VALUES 
+                                (#{masterCode}
+                                ,#{apiParamJson}
+                                ,#{apiReturnJson}
+                                ,now()
+                                )
+    </insert>
+    
+    <!-- 판토스 Tracking log 저장 -->
+    <insert id="insertTrackingLog" parameterType="Map">
+        INSERT INTO tb_delivery_tracking_pantos (master_code, tracking, up_date) 
+        VALUES  (#{masterCode}, #{tracking}, now())
+    </insert>
+        
+    <!-- 판토 주문 정보 업데이트 A020020-->
+    <update id="updateOrderPantos" parameterType="Map">
+        UPDATE tb_delivery SET
+            up_date = now()
+            , hbl_no = #{hblNo}
+            , so_no = #{soNo}
+            , state= FN_GET_PANTOSCD_TO_DELIVERYCD(#{state})
+            , state_group= #{stateGrop}
+            , reason =  concat(#{apiCode},' '#{result},' ',#{errMsg}) 
+        WHERE master_code=#{masterCode}
+    </update>
+    
+    <select id="selectDeliveryPantos" parameterType="java.util.List" resultType="com.shopify.api.pantos.PantosDeliveryData">
+        SELECT 
+            td.master_code as coNO
+            , 1 as boxQty
+            , td.buyer_firstname as   cneeNm1
+            , td.buyer_lastname as   cneeNm2  
+            , td.buyer_addr1 as cneeAddr1
+            , td.buyer_addr2 as cneeAddr2
+            , td.buyer_city as cneeAddr3
+            , td.buyer_province as cneeAddr4
+            , td.buyer_zip_code as cneeZipcd
+            , td.buyer_country_code  as cneeNatnCd
+            , td.buyer_phone as cneeTelNo
+            , td.buyer_email as cneeEmailAddr
+            , td.seller_name as shppNm
+            , td.seller_phone as shppTelNo
+            , concat(td.seller_addr1_ename,td.seller_addr2_ename) as shppAddr
+            , 'KRICN' as polCd 
+            , (case when td.buyer_country_code ='JP' and tdp.courier='B140010' then 'JPNRT'
+            		else td.buyer_country_code end) as podCd
+<!--             , FN_PANTOSDELIVERY_PODCD(td.buyer_country_code) as podCd -->
+            ,(case when tds.repre_item_nm = '' then 'Clothes'
+                   else tds.repre_item_nm end) as itemCd  
+            , tds.goods  as itemNm
+            , td.seller_country_code as orgnNatnCd      
+            , tds.unit_cost as untprc
+            , 'USD' as curCd
+            , tds.quantity as itemQty
+            , tds.hscode as hsCd
+            , '' as homepageAddr
+            , td.box_width as wthLen
+            , td.box_length as vertLen  
+            , td.box_height as hgt
+            , td.total_weight as wgt
+            , 1 as wgtUnitCd
+            , '' as rmk
+            , 'P' as frgttermCd
+            ,(case when tdp.courier = 'B140020' then 'EMS'
+                   when tdp.courier = 'B140030' then 'KPL'
+                   when tdp.courier = 'B140040' then 'UPS'
+                   when td.buyer_country_code ='JP' and tdp.courier='B140010' then 'QXP'
+                   else '' end) as carrCd
+            , '' as expsSvcTypeCd
+            , '' as hblNo
+            , '' as etcNm1
+            , '' as etcNm3
+            , '' as etcNm4
+            , '' as etcNm5
+           	, tds.goods_code as productId
+            , td.shop_idx as shopIdx
+            , tds.price_currency as unitCurrency  
+           	, tds.item_link as homepageAddr
+        from tb_delivery td 
+        INNER JOIN tb_delivery_payment tdp on td.master_code =tdp.master_code 
+        INNER JOIN tb_delivery_sku tds on td.master_code=tds.master_code 
+        where tdp.courier_company ='B010030'
+        <choose>
+            <when test="list.size != 0">
+                AND td.master_code IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.masterCode}
+                </foreach>
+            </when>
+        </choose>
+        
+        ORDER BY td.master_code ASC
+    </select>
+    
+</mapper>

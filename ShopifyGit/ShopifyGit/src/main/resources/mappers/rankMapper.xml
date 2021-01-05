@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.RankMapper">
+	
+	<select id="selectAllRankCount" resultType="int" >
+		SELECT count(*) AS count FROM tb_seller_rank
+	</select>
+	
+	<select id="chkRank" resultType="int" >
+		SELECT count(*) AS count FROM tb_seller_rank
+		WHERE rank_id = #{rankId}
+		  AND start_date = #{startDate}
+	</select>
+	
+	<!-- rank > 할인율 Select -->
+	<select id="listRank"  parameterType="com.shopify.admin.rank.RankData" resultType="com.shopify.admin.rank.RankData">
+        SELECT idx AS idx
+             , FN_LOCALE_MESSAGE('E010000',rank_id ,#{locale}) AS rankId    
+             , rank_id AS rankCode
+      		 , FN_LOCALE_MESSAGE('J010000',discount ,#{locale}) AS discountName
+      		 , discount AS discountCode
+             , start_date AS startDate
+             , reg_date AS regDate
+          FROM tb_seller_rank
+         WHERE 1 = 1
+		ORDER BY discount ASC
+    </select>
+    
+    <!-- rank > 할인율 상세조회 -->
+	<select id="showRank"  parameterType="com.shopify.admin.rank.RankData" resultType="com.shopify.admin.rank.RankData">
+        SELECT idx AS idx
+             , FN_LOCALE_MESSAGE('E010000',rank_id ,#{locale}) AS rankId
+             , rank_id AS rankCode
+      		 , FN_LOCALE_MESSAGE('J010000',discount ,#{locale}) AS discountName
+      		 , discount AS discountCode
+             , start_date AS startDate
+             , reg_date AS regDate
+          FROM tb_seller_rank
+         WHERE 1 = 1
+           AND idx = #{idx}
+		ORDER BY discount ASC
+    </select>
+    
+    
+    <update id="updateRank" parameterType="com.shopify.admin.rank.RankData">
+		UPDATE tb_seller_rank
+		SET discount = #{discount}
+		WHERE idx = #{idx}
+	</update>
+    
+    <!-- rank > 할인율 Insert -->
+	<insert id="insertRank" parameterType="com.shopify.admin.rank.RankData" >
+		INSERT INTO tb_seller_rank  
+							( rank_id
+							, discount
+                            , start_date
+							)
+							VALUES 
+						        (#{rankId}
+								,#{discount}
+								,#{startDate}
+						        )
+	</insert>
+	
+	<!-- rank > 할인율 Delete -->  
+	<delete id="deleteRank" parameterType="String">
+		DELETE FROM tb_seller_rank WHERE idx = #{idx}  
+	</delete>
+   
+</mapper>

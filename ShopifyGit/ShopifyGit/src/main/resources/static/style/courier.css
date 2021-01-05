@@ -1,0 +1,368 @@
+@charset 'utf-8';
+
+.popup .pop_body {
+    max-height: 640px;
+}
+
+.popup .pop_body p {
+    font-size: 14px;
+    line-height: 35px;
+    position: relative;
+    top: 0;
+}
+
+select + .guide_txt {
+    font-size: 12px;
+    line-height: 35px;
+    position: relative;
+    top: 0 !important;
+    height: 35px;
+    height: 35px;
+    padding: 0 13px;
+    border: 1px solid #ddd;
+    background: #fafafa;
+}
+
+.gridbx p {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.tit,
+.ipt {
+    float: left;
+}
+
+.ipt.rt input {
+    text-align: right;
+}
+
+.tit + .ipt {
+    margin-left: 20px;
+}
+
+.form_side.narrow {
+    float: left;
+    width: 46%;
+    margin-top: 10px;
+    margin-top: 20px;
+    padding: 0;
+    padding-right: 20px;
+    background: #fff;
+}
+
+select {
+    font-size: 14px;
+}
+
+
+input.guide_ipt {
+    padding: 0;
+    text-align: left!important;
+    border: 0;
+    outline: none;
+    background: transparent;
+}
+
+input.guide_ipt:focus {
+    padding: 0;
+    outline: none;
+}
+
+.required.only {
+    font-size: 14px;
+    font-weight: 600;
+    padding-left: 0;
+}
+
+.required.only:before {
+    left: -10px;
+}
+
+.de_inf {
+    position: relative;
+}
+
+
+.dlv_inf.address {
+    display: table;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 0 0 0;
+    border-top: 1px solid #c3c3c3;
+    border-bottom: 1px solid #c3c3c3;
+    background: #fafafa;
+}
+
+input.adr_info {
+    width: calc(100% - 175px);
+    margin-left: 10px;
+}
+
+.alignbx.fwd {
+    position: relative;
+    float: left;
+    width: 100%;
+    padding-left: 20px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .tit {
+    width: 60px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .ipt {
+    width: calc(100% - 80px);
+}
+.dlv_inf.address > .alignbx.fwd > .ipt select {
+    width: 150px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm {
+    width: auto;
+}
+
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm.dpt_r input {
+    width: 470px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm.name_r input {
+    width: 280px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm.address_r input {
+    width: 660px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm.zipcode_r input {
+    width: 78px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm.number_r input {
+    width: 150px;
+}
+
+.number_r {
+    position: relative;
+    z-index: 1;
+}
+
+.mail_r {
+    position: relative;
+    z-index: 1;
+}
+
+.number_r:after {
+    position: absolute;
+    z-index: -1;
+    top: -10px;
+    left: -10px;
+    width: calc(100% + 25px);
+    height: calc(100% + 20px);
+    content: '';
+    background: #e7f2ff;
+}
+
+.mail_r:after {
+    position: absolute;
+    z-index: -1;
+    top: -10px;
+    left: -6px;
+    width: calc(100% + 16px);
+    height: calc(100% + 20px);
+    content: '';
+    background: #e7f2ff;
+}
+
+
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm.mail_r input {
+    width: 196px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm + .gridbx.cm {
+    margin-left: 20px;
+}
+
+.dlv_inf.address > .alignbx.fwd > .gridbx.cm input {
+    text-align: left;
+}
+
+
+.alignbx.fwd.destination {
+    margin-top: 10px;
+    padding: 10px 0 10px 20px;
+    background: #e7f2ff;
+}
+
+
+.alignbx.fwd .gridbx {
+    float: left;
+}
+
+.alignbx.fwd .gridbx.cm .ipt.name input {
+    width: 50px;
+}
+
+.dlv_inf.left {
+    float: left;
+    width: 100%;
+    /* padding-top: 10px; */
+    margin-top: 10px;
+    padding: 10px 20px;
+    border: 1px solid transparent;
+    border-top: 1px solid #c3c3c3;
+    background: #e7f2ff;
+}
+
+.dlv_inf.right {
+    float: right;
+    width: 100%;
+    padding: 10px 20px;
+    border: 1px solid #dadada;
+    background: #fafafa;
+}
+
+.alignbx.name {
+    float: left;
+    width: 100%;
+}
+.alignbx.name .tit {
+    float: left;
+    width: 60px;
+}
+.alignbx.name .ipt {
+    float: left;
+}
+
+.alignbx.name .ipt select {
+    float: left;
+    width: 161px;
+}
+.alignbx.name .guide_txt {
+    float: left;
+    margin-left: 10px;
+}
+
+.alignbx.bxsize {
+    float: left;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.alignbx.bxsize .gridbx .ipt input {
+    float: left;
+    width: 38px;
+    padding: 0 5px;
+    text-align: center;
+}
+
+.alignbx.bxsize .gridbx.weight .ipt input {
+    width: 66px;
+}
+
+.alignbx.bxsize .gridbx .ipt input + input.guide_ipt {
+    float: left;
+    width: 30px;
+    margin-left: 0;
+}
+
+.alignbx.bxsize .gridbx {
+    float: left;
+}
+
+.gridbx.length,
+.gridbx.width {
+    width: 78px;
+}
+
+.gridbx.height {
+    width: 140px;
+}
+
+.gridbx.length .tit,
+.gridbx.width .tit,
+.gridbx.height .tit {
+    width: 37px;
+}
+
+.gridbx.weight .tit {
+    width: 90px;
+}
+
+.alignbx.bxsize .gridbx + .gridbx {
+    margin-left: 5px;
+}
+
+.alignbx.bxsize .gridbx .tit + .ipt {
+    margin-left: 0;
+}
+
+.gridbx.weight {
+    width: 188px;
+    margin-left: 0;
+}
+
+.dlv_inf.right .alignbx {
+    float: left;
+    width: 100%;
+}
+
+.dlv_inf.right .alignbx .gridbx {
+    float: left;
+    width: 50%;
+}
+
+.dlv_inf.right .alignbx .gridbx .tit {
+    width: 60px;
+}
+
+.dlv_inf.right .alignbx .gridbx .ipt {
+    width: calc(100% - 80px);
+}
+
+.dlv_inf.right .alignbx .gridbx .ipt input {
+    width: 120px;
+}
+
+.dlv_inf.right .alignbx .gridbx .ipt input.guide_ipt {
+    width: 30px;
+    margin-left: 5px;
+}
+
+.dlv_inf.right .alignbx .gridbx.vlm_weight {
+    /* margin-top: 10px; */
+}
+
+
+
+.popup.modal_cv {
+    top: 0;
+    right: 0;
+    left: 0;
+}
+
+.pop_btn.mgct {
+    display: table;
+    width: 420px;
+    margin: auto;
+}
+
+
+.pop_btn.mgct button {
+    display: inline-block;
+    width: 200px;
+}
+
+.pop_btn.mgct button + button {
+    margin-left: 20px;
+}
+
+
+input[readonly] {
+    background: #f4f5f7;    
+}
+
+input.guide_ipt[readonly] {
+    background: transparent;    
+}

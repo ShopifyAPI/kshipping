@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.ShopMapper">
+	<insert id="insertShop" parameterType="com.shopify.shop.ShopData">
+		INSERT INTO tb_shop  
+							(
+							email
+							,shop_id
+							,shop_name
+							,ecommerce
+							,access_token
+							,access_key
+							,scope
+							,expires_in
+							,combine_yn
+							,account_owner
+							,locale
+							,domain
+							,collaborator
+							,use_yn
+							,del_yn
+							,active_yn
+							,billing_yn
+							)
+							VALUES 
+						        (
+						        #{email}
+								,#{shopId}
+								,#{shopName}
+								,#{ecommerce}
+								,#{accessToken}
+								,#{accessKey}
+								,#{scope}
+								,#{expiresIn}
+								,#{combineYn}
+								,#{accountOwner}
+								,#{locale}
+								,#{domain}
+								,#{collaborator}
+								,#{useYn}
+								,#{delYn}
+								,#{activeYn}
+								,#{billingYn}
+						        )
+	</insert>
+    
+	<update id="updateShop" parameterType="com.shopify.shop.ShopData">
+		UPDATE tb_shop 
+		SET 
+			ecommerce = #{ecommerce}
+			,access_token = #{accessToken}
+			,access_key = #{accessKey}
+			,scope = #{scope}
+			,expires_in = #{expiresIn}
+			,combine_yn = #{combineYn}
+			,account_owner = #{accountOwner}
+			,locale = #{locale}
+			,collaborator = #{collaborator}
+ 			,use_yn = #{useYn}
+			,del_yn = #{delYn}
+		WHERE shop_id = #{shopId} AND email = #{email}
+	</update>
+    
+	<delete id="deleteShop" parameterType="com.shopify.shop.ShopData">
+		DELETE FROM tb_shop WHERE shop_id = #{shopId}
+	</delete>
+
+    <select id="selectOneShopCount" parameterType="com.shopify.shop.ShopData" resultType="int">
+		SELECT count(*) AS shopCount FROM tb_shop 
+		WHERE 1=1
+		<if test="shopIdx neq null and shopIdx neq ''.toString()">
+		AND shop_idx = #{shopIdx}
+		</if>
+		<if test="email neq null and email neq ''.toString()">
+		AND email = #{email}
+		</if>
+		<if test="shopId neq null and shopId neq ''.toString()">
+		AND shop_id  = #{shopId}
+		</if>		
+	</select>
+    
+	<select id="selectAllShopCount" resultType="int" >
+		SELECT count(*) AS shopCount FROM tb_shop where del_yn='N' AND use_yn='Y'
+	</select>
+	
+	<select id="selectOneShop"  parameterType="com.shopify.shop.ShopData" resultType="com.shopify.shop.ShopData">
+        SELECT
+        	<!-- shop_idx
+        	,email
+			,shop_id
+			,shop_name
+			,ecommerce
+			,access_token
+			,access_key
+			,scope
+			,expires_in
+			,combine_yn
+			,account_owner
+			,locale
+			,collaborator
+			,use_yn
+			,reg_date  -->
+			shop_idx 			as shopIdx
+			,email
+			,shop_id 			as shopId
+			,shop_name 		as shopName
+			,ecommerce
+			,access_token 	as accessToken
+			,access_key 		as accessKey
+			,scope
+			,expires_in 		as expiresIn
+			,combine_yn 		as combineYn
+			,account_owner 	as accountOwner
+			,locale
+			,collaborator
+			,use_yn 				as useYn
+			,reg_date 			as regDate
+			,domain
+			,active_yn			as activeYn
+			,billing_yn			as billingYn
+        FROM tb_shop
+        WHERE 1=1
+        <!-- 메서드 오버로딩으로 다른 메서드를 호출하기 위해 개인적으로 걸어놓은 조건문 -->
+		<if test="shopIdx neq null and shopIdx neq '0' and shopIdx neq ''.toString()">
+		AND shop_idx = #{shopIdx}
+		</if>
+		<if test="email neq null and email neq ''.toString()">
+		AND email = #{email}
+		</if>
+		<if test="shopId neq null and shopId neq ''.toString()">
+		AND shop_id = #{shopId}
+		</if>
+		LIMIT 0,1
+    </select>
+    
+    <select id="selectAllShop"  parameterType="com.shopify.shop.ShopData" resultType="com.shopify.shop.ShopData">
+        SELECT
+        	shop_idx 			as shopIdx
+			,email
+			,shop_id 			as shopId
+			,shop_name 		as shopName
+			,ecommerce
+			,access_token 	as accessToken
+			,access_key 		as accessKey
+			,scope
+			,expires_in 		as expiresIn
+			,combine_yn 		as combineYn
+			,account_owner 	as accountOwner
+			,locale
+			,collaborator
+			,use_yn 				as useYn
+			,active_yn			as activeYn
+			,billing_yn			as billingYn
+			,reg_date 			as regDate
+			,domain
+			, (SELECT order_code  FROM  tb_order_list WHERE order_idx =(SELECT MAX(order_idx) FROM tb_order_list WHERE shop_idx= shopIdx) ) AS orderIdx
+        FROM tb_shop
+		WHERE 1=1 AND del_yn='N' AND use_yn='Y'
+		<if test="email neq null and email neq ''.toString()">
+		AND email = #{email}
+		</if>
+	 
+		<!-- 다른 메서드 호출시 반영되지 않기위해 걸어놓은 조건문 -->
+		ORDER BY shop_idx DESC
+		<if test="startRow neq lastPage"> 
+		LIMIT #{startRow},#{rowPerPage}
+		</if>
+    </select>
+    
+    <!-- 해당계정의 shop domain 구해오기  -->
+    <select id="selectShopOrderDomain"  parameterType="com.shopify.shop.ShopData" resultType="com.shopify.shop.ShopData">
+        SELECT
+			s.shop_idx 				as shopIdx
+			,s.email
+			,s.shop_id 				as shopId
+			,s.shop_name 		as shopName
+			,s.ecommerce
+			,s.access_token 		as accessToken
+			,s.scope
+			,s.domain
+			
+        FROM tb_shop as s 
+        WHERE 1=1
+		AND s.email = #{email}
+		<if test="shopId neq null and shopId neq ''.toString()">
+		AND s.shop_id = #{shopId}
+		</if>
+    </select>
+    
+    <!--  selectShopOrderDomain 백업용-->
+    <select id="selectShopOrderDomain_bak"  parameterType="com.shopify.shop.ShopData" resultType="com.shopify.shop.ShopData">
+        SELECT
+			s.shop_idx 				as shopIdx
+			,s.email
+			,s.shop_id 				as shopId
+			,s.shop_name 		as shopName
+			,s.ecommerce
+			,s.access_token 		as accessToken
+			,s.scope
+			,s.domain
+			,d.master_code		as masterCode
+			,o.order_code			as orderCode
+        FROM tb_shop as s join tb_delivery as d on s.shop_idx = d.shop_idx
+        join (
+        	select child_code as order_code, parent_code as master_code
+        		from tb_delivery_combine
+        	union all
+        	select order_code, master_code
+        		from tb_delivery_order
+        	) as o on o.master_code = d.master_code
+        WHERE 1=1
+		<if test="email neq null and email neq ''.toString()">
+		AND s.email = #{email}
+		</if>
+		<if test="masterCode != null and masterCode != ''">
+            AND d.master_code = #{masterCode}
+        </if>
+        <if test="masterCodeList != null and masterCodeList != '' ">
+            AND d.master_code IN
+            <foreach collection="masterCodeList" item="item" index="index" separator="," open="(" close=")">
+                #{item,jdbcType=VARCHAR}
+            </foreach>
+        </if>
+    </select>
+    
+    <select id="selectShopFromMaster" resultType="com.shopify.shop.ShopData">
+        SELECT  
+          A.domain              as domain
+          , A.access_token      as accessToken
+          , D.master_code       as masterCode
+          , O.order_code        as orderCode
+          , D.hbl_no            as trackingNo       
+          , tdp.courier_company as courier                                        
+        FROM tb_shop as A 
+        inner  join tb_delivery as D on A.shop_idx = D.shop_idx
+        INNER JOIN tb_delivery_payment tdp on D.master_code =tdp.master_code 
+        inner join tb_delivery_order O on O.master_code = D.master_code 
+            AND D.master_code IN
+            <foreach collection="array" item="item" index="index" separator="," open="(" close=")">
+                #{item,jdbcType=VARCHAR}
+            </foreach>
+    </select>
+
+    <select id="selectLotteTrackingFromMaster" resultType="com.shopify.shop.ShopData">
+        SELECT  
+          A.domain              as domain
+          , A.access_token      as accessToken
+          , D.master_code       as masterCode
+          , O.order_code        as orderCode       
+          , tdp.courier as courier  
+          , D.buyer_country_code AS buyerCountryCode                                
+          FROM tb_shop as A 
+        inner join tb_delivery as D on A.shop_idx = D.shop_idx
+        INNER JOIN tb_delivery_payment tdp on D.master_code =tdp.master_code 
+        inner join tb_delivery_order O on O.master_code = D.master_code 
+        left outer join tb_delivery_tracking dt on dt.master_code =D.master_code 
+            where D.master_code = #{masterCode}
+
+    </select>    
+</mapper>

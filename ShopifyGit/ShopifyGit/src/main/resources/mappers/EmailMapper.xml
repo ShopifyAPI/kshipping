@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.EmailMapper">
+
+    <insert id="insertEmail" parameterType="com.shopify.common.EmailData">
+        INSERT INTO tb_email_job
+            (
+            to_email
+            ,subject
+            ,content
+            ,create_date
+            )
+            VALUES
+            (
+             #{toEmail}
+             ,#{subject}
+             ,#{content}
+             ,NOW()
+            )
+    </insert>
+
+    <select id="selectEmailList" parameterType="com.shopify.common.EmailData" resultType="com.shopify.common.EmailData">
+        SELECT id
+               , to_email
+               , subject
+               , content
+         from tb_email_job
+          where 1 =1
+                and send_result is null or send_result = FALSE
+    </select>
+    
+    <update id="updateEmailList" parameterType="com.shopify.common.EmailData">
+        UPDATE tb_email_job 
+            SET send_result = #{result}, 
+            send_date = NOW()
+        where 1 = 1 
+            and id = #{id}
+    </update>
+
+</mapper>

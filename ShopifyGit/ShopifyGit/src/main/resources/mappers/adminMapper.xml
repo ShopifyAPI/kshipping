@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.AdminMapper">
+
+	<!-- 
+         admin > adminList > 리스트 검색 퀴리
+    -->
+    <sql id="searchAdminList">
+    
+<!-- 		<if test="searchType == null or searchType == '' "> -->
+<!-- 			<if test="searchWord != null and searchWord != '' ">	 -->
+<!-- 				AND (id LIKE '%' #{searchWord} '%' -->
+<!-- 				  OR name LIKE '%' #{searchWordAese} '%' -->
+<!-- 				  OR DATE_FORMAT(reg_date, '%Y-%m-%d') = DATE_FORMAT(#{searchWord}, '%Y-%m-%d')) -->
+<!-- 			</if> -->
+<!--     	</if> -->
+
+		<if test="searchType != null and searchType != '' ">
+			<if test = "searchType == 'email' ">
+				<if test = "searchWord != null and searchWord != '' ">
+					AND id LIKE '%' #{searchWord} '%'
+				</if>
+			</if>
+		</if>
+		<if test="searchType != null and searchType != '' ">
+			<if test = "searchType == 'name' ">
+				<if test = "searchWord != null and searchWord != '' ">
+					AND name LIKE '%' #{searchWordAese} '%'
+				</if>
+			</if>
+		</if>
+		<if test="searchType != null and searchType != '' ">
+			<if test = "searchType == 'regDate' ">
+				<if test = "searchWord != null and searchWord != '' ">
+					AND DATE_FORMAT(reg_date, '%Y-%m-%d') = DATE_FORMAT(#{searchWord}, '%Y-%m-%d')
+				</if>
+			</if>
+		</if>    
+    </sql>
+
+
+
+
+	<insert id="insertAdmin" parameterType="com.shopify.admin.AdminData">
+		INSERT INTO tb_admin
+							(
+							id
+							,passwd
+							,name
+							,depart
+							,email
+							,phone_number
+							,use_yn
+							,use_sdate
+							,use_edate
+							,scope_id
+							)
+							VALUES 
+						        (
+						        #{id}
+								,#{passwd}
+								,#{name}
+								,#{depart}
+								,#{email}
+								,#{phone_number}
+								,#{use_yn}
+								,#{use_sdate}
+								,#{use_edate}
+								,#{scope_id}
+						        )
+	</insert>
+    
+	<update id="updateAdmin" parameterType="com.shopify.admin.AdminData">
+		UPDATE tb_admin 
+		SET 
+			email = #{email}
+			<if test='passwd neq null and passwd != ""'>
+			,passwd = #{passwd}
+			</if>
+			,name = #{name}
+			,depart = #{depart}
+			,email = #{email}
+			,phone_number = #{phone_number}
+			,use_yn = #{use_yn}
+			,use_sdate = #{use_sdate}
+			,use_edate = #{use_edate}
+			,scope_id = #{scope_id}
+			,up_date = #{up_date}
+		WHERE id = #{id}
+	</update>
+	
+	<update id="updatePassword" parameterType="com.shopify.admin.AdminData">
+		UPDATE tb_admin 
+		SET passwd = #{passwd}
+		<if test='phoneNumber neq null and phoneNumber != ""'>
+            ,phone_number = #{phoneNumber}
+        </if>
+		WHERE id = #{id}
+	</update>
+	
+	
+	
+    <select id="selectAdminPasswdCount"  parameterType="com.shopify.admin.AdminData" resultType="int">
+        SELECT
+        	count(id) as cnt
+        FROM tb_admin
+        WHERE id = #{id}
+		AND passwd = #{passwd}
+    </select>
+    
+    <select id="selectAdminPasswd"  parameterType="com.shopify.admin.AdminData" resultType="com.shopify.admin.AdminData">
+        SELECT
+        	id
+			,passwd
+			,name
+			,depart
+			,email
+			,phone_number
+			,use_yn
+			,use_sdate
+			,use_edate
+			,scope_id
+			,reg_date
+			,up_date
+        FROM tb_admin
+        WHERE id = #{id}
+		AND passwd = #{passwd}
+    </select>
+    
+    <select id="selectAdminCount"  parameterType="com.shopify.admin.AdminData" resultType="int">
+        SELECT
+        	count(id) as cnt
+        FROM tb_admin
+        WHERE id = #{id}
+    </select>
+    
+    <select id="selectAdmin"  parameterType="com.shopify.admin.AdminData" resultType="com.shopify.admin.AdminData">
+        SELECT
+        	email
+			,seller_id
+			,email_verified
+			,first_name
+			,last_name
+			,passwd
+			,phone_number
+			,company
+			,company_ename
+			,company_num
+			,rank_id
+			,use_yn
+			,reg_date
+        FROM tb_admin
+        WHERE id = #{id}
+    </select>
+    
+    <select id="selectAdminList"  parameterType="com.shopify.admin.AdminData" resultType="com.shopify.admin.AdminData">
+        SELECT id AS adminId
+			,FN_LOCALE_MESSAGE('I010000',depart ,#{locale}) AS adminDepart   
+			,email AS adminEmail
+			,name AS adminName
+			,DATE_FORMAT(reg_date, '%Y-%m-%d') AS adminRegDate
+        FROM tb_admin
+        WHERE 1 = 1
+		<include refid="searchAdminList"></include>
+		ORDER BY reg_date DESC
+		<if test="currentPage != 0">
+            <if test="startRow neq totalPageNum">  
+			LIMIT #{startRow}, #{pageSize}
+			</if>
+		</if>
+    </select>
+    
+	<update id="updateAdminList" parameterType="com.shopify.admin.AdminData">
+		UPDATE tb_admin
+		SET scope_id = (SELECT code_etc FROM tb_use_code WHERE code_id = #{adminDepart})
+		  , depart = #{adminDepart}
+		  , phone_number = #{adminPhoneNumber}
+		  , use_sdate = #{adminUseSdate}
+          , use_edate = #{adminUseEdate}
+          , use_yn = #{adminUseYn}
+          <if test="adminPasswd neq '' and adminPasswd != null">  
+		  , passwd = #{adminPasswd}
+		  </if>
+		WHERE id = #{adminId}
+	</update>
+	
+	<insert id="insertAdminListPop" parameterType="com.shopify.admin.AdminData">
+		INSERT INTO tb_admin
+							(
+							id
+							,passwd
+							,name
+							,depart
+							,email
+							,phone_number
+							,use_sdate
+                            ,use_edate
+                            ,scope_id
+                            ,use_yn
+							)
+							VALUES 
+						        (
+						        #{adminId}
+								,#{adminPasswd}
+								,#{adminName}
+								,#{adminScopeId}
+								,#{adminId}
+								,#{adminPhoneNumber}
+								,#{adminUseSdate}
+								,#{adminUseEdate}
+								,(SELECT code_etc FROM tb_use_code WHERE code_id=#{adminScopeId})
+								,#{adminUseYn}
+						        )
+	</insert>
+	
+	<select id="chkAdmin" parameterType="com.shopify.admin.AdminData" resultType="int">
+		SELECT count(*) from tb_admin 
+		 WHERE id = #{adminId}
+	</select>
+	
+	<delete id="deleteAdminList" parameterType="String">
+		DELETE FROM tb_admin 
+		WHERE id = #{id}
+	</delete>
+	
+	<select id="selectAdminShow"  parameterType="com.shopify.admin.AdminData" resultType="com.shopify.admin.AdminData">
+        SELECT
+			 id AS adminId
+			,depart AS adminDepart 
+			,name AS adminName
+			,phone_number AS adminPhoneNumber
+			,DATE_FORMAT(reg_date, '%Y-%m-%d') AS adminRegDate
+			,scope_id AS adminScopeId
+            ,use_sdate AS adminUseSdate
+            ,use_edate AS adminUseEdate			
+            ,use_yn AS adminUseYn			
+        FROM tb_admin
+        WHERE 1 = 1
+          AND id = #{adminId}
+    </select>
+    
+    <select id="selectAllAdminCount" resultType="int" >
+		SELECT count(*) AS adminCount 
+		  FROM tb_admin
+		WHERE 1 = 1
+		<include refid="searchAdminList"></include>
+	</select>
+	
+	<select id="selectAllAdmin"  parameterType="com.shopify.admin.AdminData" resultType="com.shopify.admin.AdminData">
+        SELECT id AS adminId
+			 , phone_number AS adminPhoneNumber
+			 , FN_LOCALE_MESSAGE('I010000', depart, #{locale}) AS adminDepart
+			 , email AS adminEmail
+			 , name AS adminName
+			 , DATE_FORMAT(reg_date, '%Y-%m-%d') AS adminRegDate
+          FROM tb_admin
+         WHERE 1 = 1
+         <include refid="searchAdminList"></include>
+         ORDER BY reg_date DESC
+         <if test="currentPage != 0">
+            <if test="startRow neq totalPageNum">  
+			LIMIT #{startRow}, #{pageSize}
+			</if>
+		</if>
+		
+    </select>
+    
+    <select id="selectAdminLogin"  parameterType="com.shopify.admin.AdminData" resultType="com.shopify.admin.AdminData">
+        SELECT
+             id
+			,passwd
+			,name
+			,depart
+			,email
+			,phone_number
+			,use_yn
+			,use_sdate
+			,use_edate
+			,scope_id
+			,find_auth
+        FROM tb_admin
+        WHERE email = #{email} and use_yn='Y'
+    </select>
+    
+    <select id="selectAdminScope"  parameterType="com.shopify.admin.AdminScopeData" resultType="com.shopify.admin.AdminScopeData">
+        select 
+	        scope_id
+	        ,menu_id
+	        ,redirect
+	        ,sys_part
+        from (
+            select
+                 scope_id
+                ,menu_id
+                ,redirect
+                ,sys_part
+                ,(select code_seq from tb_use_code where code_id=a.menu_id) seq
+            from tb_scope a, tb_use_code b
+            where a.scope_id = b.code_etc and b.use_yn='y'
+                and scope_id = #{scopeId}
+            order by a.menu_id
+        ) t order by t.seq, t.menu_id
+    </select>
+    
+    
+</mapper>

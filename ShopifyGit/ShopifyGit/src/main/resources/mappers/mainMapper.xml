@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.MainMapper">
+
+    <!-- 
+        DashBoard 통계 정보
+    -->
+    <!--  
+    <select id="selectOrderTotal" parameterType="com.shopify.main.MainData" resultType="com.shopify.main.MainData">
+        select 
+            sum(orderDay) as orderDay
+            , sum(orderMonth) as orderMonth
+            , sum(shipmentDay) as shipmentDay
+            , sum(shipmentMonth) as shipmentMonth
+            , sum(salesDayDay) as salesDayDay
+            , sum(salesDayMonth) as salesDayMonth
+        from (
+            select 
+                sum( if(orderDate=#{nowDate}, cnt, 0) ) as orderDay
+                , sum(cnt) as orderMonth
+                , 0 as shipmentDay
+                , 0 as shipmentMonth
+                , 0 as salesDayDay
+                , 0 as salesDayMonth
+            from (
+              select 
+                  DATE_FORMAT(order_date, '%Y-%m-%d') orderDate, count(*) cnt  
+              from tb_shop a join 
+                  tb_order_list b on a.shop_idx=b.shop_idx
+                where 1 = 1
+                    and a.del_yn='N' 
+                    and a.email= #{email}
+                    and b.order_date &gt;= '2020-03-01'  
+                    and b.order_date &lt; '2020-04-01'
+                group by orderDate
+             ) T1 
+            union all
+            select 
+                0 as orderDay
+                , 0 as orderMonth
+                , sum( if(orderDate=#{nowDate}, cnt, 0) ) as shipmentDay
+                , sum(cnt) as shipmentMonth
+                , 0 as salesDayDay
+                , 0 as salesDayMonth
+            from (
+                select 
+                  DATE_FORMAT(order_date, '%Y-%m-%d') orderDate, count(*) cnt  
+              from tb_shop a join 
+                  tb_order_list b on a.shop_idx=b.shop_idx
+                where 1 = 1
+                    and a.del_yn='N' 
+                    and a.email= #{email}
+                    and b.order_date &gt;= #{startDate} 
+                    and b.order_date &lt; #{endDate}
+                    and financial_status = 'paid'
+                group by orderDate
+            ) T2
+            union all
+            select 
+                0 as orderDay
+                , 0 as orderMonth
+                , 0 as shipmentDay
+                , 0 as shipmentMonth
+                , sum( if(orderDate=#{nowDate}, cnt, 0) ) as salesDayDay
+                , sum(cnt) as salesDayMonth
+            from (
+                select 
+                    DATE_FORMAT(b.reg_date, '%Y-%m-%d') orderDate, count(*) cnt  
+                from tb_shop as a 
+                    join tb_delivery as b on a.shop_idx = b.shop_idx 
+                    join tb_delivery_order o on b.master_code = o.master_code 
+                    join tb_order_list ol on o.order_code = ol.order_code 
+                where o.hide_yn = 'N' 
+                    and ol.hide_yn = 'Y' 
+                    and state in ('A020099')
+                    and ol.order_idx in (select order_idx from tb_order_detail where order_idx = ol.order_idx and del_yn = 'N') 
+                    and a.email = #{email}
+                    and b.reg_date &gt;= #{startDate} 
+                    and b.reg_date &lt; #{endDate}
+                    group by orderDate
+            ) T3
+         ) T
+    </select>
+    -->
+    <!-- 
+        DashBoard 통계 정보 : 조한두 수정 (20.04.28) // Order 조회 조건 추가: yr(20.05.22)
+    -->
+ 
+    <select id="selectOrderTotal" parameterType="com.shopify.main.MainData" resultType="com.shopify.main.MainData">
+        select 
+            sum(orderDay) as orderDay
+            , sum(orderMonth) as orderMonth
+            , sum(shipmentDay) as shipmentDay
+            , sum(shipmentMonth) as shipmentMonth
+            , sum(salesDayDay) as salesDayDay
+            , sum(salesDayMonth) as salesDayMonth
+        from (
+            select 
+                sum( if(orderDate=#{nowDate}, cnt, 0) ) as orderDay
+                , sum(cnt) as orderMonth
+                , 0 as shipmentDay
+                , 0 as shipmentMonth
+                , 0 as salesDayDay
+                , 0 as salesDayMonth
+            from (
+              select 
+                  DATE_FORMAT(order_date, '%Y-%m-%d') orderDate, count(*) cnt  
+              from tb_shop a join 
+                  tb_order_list b on a.shop_idx=b.shop_idx
+                where 1 = 1
+                    and a.del_yn='N' 
+                    and a.email= #{email}
+                    and b.order_date &gt;= #{startDate} 
+                    and b.order_date &lt; #{endDate}
+                    and b.financial_status = 'paid'
+                    and b.shippingLineCode LIKE 'B%'
+                group by orderDate
+             ) T1 
+            union all
+            select 
+                0 as orderDay
+                , 0 as orderMonth
+                , sum( shipReady ) as shipmentDay
+                , sum(cnt) as shipmentMonth
+                , 0 as salesDayDay
+                , 0 as salesDayMonth
+            from (
+                SELECT 
+		            shipReady
+		            ,0 as cnt
+		            from(
+		                select 
+		                        count(*)   as shipReady
+		                    from tb_shop as a 
+		                        join tb_delivery as b on a.shop_idx = b.shop_idx 
+		                        join tb_delivery_order o on b.master_code = o.master_code 
+		                        join tb_order_list ol on o.order_code = ol.order_code 
+		                    where o.hide_yn = 'N' 
+		                        and ol.hide_yn = 'Y' 
+		                        and state in ('A020010','A020020','A020025','A020030')
+		                        and ol.order_idx in (select order_idx from tb_order_detail where order_idx = ol.order_idx and del_yn = 'N') 
+		                        and a.email = #{email}
+		                        and b.reg_date &gt;= #{startDate} 
+                                and b.reg_date &lt; #{endDate} 
+		            )T21
+		            UNION ALL
+		            SELECT 
+		            0 AS shipReady
+		            ,cnt
+		            from(
+		                 select 
+		                        count(*)   as cnt  
+		                    from tb_shop as a 
+		                        join tb_delivery as b on a.shop_idx = b.shop_idx 
+		                        join tb_delivery_order o on b.master_code = o.master_code 
+		                        join tb_order_list ol on o.order_code = ol.order_code 
+		                    where o.hide_yn = 'N' 
+		                        and ol.hide_yn = 'Y' 
+		                        and state_group = 'A020000'
+		                        and ol.order_idx in (select order_idx from tb_order_detail where order_idx = ol.order_idx and del_yn = 'N') 
+		                        and a.email = #{email}
+		                       and b.reg_date &gt;= #{startDate} 
+                               and b.reg_date &lt; #{endDate}
+		            )T22
+            ) T2
+            union all
+            select 
+                0 as orderDay
+                , 0 as orderMonth
+                , 0 as shipmentDay
+                , 0 as shipmentMonth
+                , sum( if(orderDate=#{nowDate}, cnt, 0) ) as salesDayDay
+                , sum(cnt) as salesDayMonth
+            from (
+                select 
+                    DATE_FORMAT(b.reg_date, '%Y-%m-%d') orderDate, count(*) cnt  
+                from tb_shop as a 
+                    join tb_delivery as b on a.shop_idx = b.shop_idx 
+                    join tb_delivery_order o on b.master_code = o.master_code 
+                    join tb_order_list ol on o.order_code = ol.order_code 
+                where o.hide_yn = 'N' 
+                    and ol.hide_yn = 'Y' 
+                    and state in ('A020099')
+                    and ol.order_idx in (select order_idx from tb_order_detail where order_idx = ol.order_idx and del_yn = 'N') 
+                    and a.email = #{email}
+                    and b.reg_date &gt;= #{startDate} 
+                    and b.reg_date &lt; #{endDate}
+                    group by orderDate
+            ) T3
+         ) T
+    </select>
+    
+    <!-- 
+         seller > 리스트 검색 퀴리(NOTICE)
+    -->
+
+     <sql id="searchNotice">
+        <if test="idx != null and idx != 0">
+            AND idx = #{idx}
+        </if>
+        <if test="searchWord != null and searchWord != '' ">
+            AND title LIKE '%' #{searchWord} '%'
+        </if>
+        <if test='searchType != null and searchType != "" '>
+            <if test="searchType != 'D040000'">
+                AND part =  #{searchType}
+            </if>
+        </if>
+    </sql>  
+ 
+    <select id="selectAllNotice"  parameterType="com.shopify.main.MainData" resultType="com.shopify.main.MainData">
+        SELECT
+             idx
+            ,flag_top AS flagTop
+            ,noti_type AS type
+            ,FN_LOCALE_MESSAGE('D040000',part ,#{locale}) AS partName            
+            ,part AS partCode                         
+            ,title
+            ,reg_admin AS writer
+            ,content AS content
+            ,deleted_yn AS deletedYn
+            ,DATE_FORMAT(reg_date, '%Y-%m-%d') AS regDate
+            ,DATE_FORMAT(noti_from_date, '%Y-%m-%d') AS notiFromDate
+        FROM tb_notice
+        WHERE (1=1)
+        AND noti_svc = #{noti_svc}
+        AND deleted_yn = 'Y'  
+        <![CDATA[ AND CURDATE() >= noti_from_date ]]>
+        <![CDATA[ AND CURDATE() <= noti_to_date ]]>
+        <include refid="searchNotice"></include>
+        ORDER BY flag_top ASC, noti_from_date DESC
+        <if test="currentPage != 0">
+            <if test="startRow neq totalPageNum"> 
+            LIMIT #{startRow}, #{pageSize}
+            </if>
+        </if>
+     </select>
+         
+    <select id="selectAllNoticeCount" resultType="int" >
+        SELECT count(*) AS adminCount 
+          FROM tb_notice
+        WHERE  deleted_yn = 'Y' AND  
+         NOW() &gt;= noti_from_date AND
+              NOW() &lt; noti_to_date       
+        <include refid="searchNotice"></include>
+    </select>     
+
+    <select id="NoticeFlagCount" resultType="int" >
+        SELECT count(*) AS flagCount 
+          FROM tb_notice
+        WHERE flag_top = 'K020010' AND
+              noti_svc = #{noti_svc} AND
+              deleted_yn = 'N'    
+    </select>     
+    
+    
+    <select id="showNotice"  parameterType="com.shopify.main.MainData" resultType="com.shopify.main.MainData">
+        SELECT
+            idx
+            ,noti_type AS type
+            ,FN_LOCALE_MESSAGE('D040000',part ,#{locale}) AS partName            
+            ,part AS partCode                         
+            ,title
+            ,reg_admin AS writer
+            ,content AS content
+            ,DATE_FORMAT(reg_date, '%Y-%m-%d') AS regDate
+        FROM tb_notice
+        WHERE 1=1
+        <if test="idx != null and idx != 0">
+            AND idx = #{idx}
+        </if>
+    </select>
+     
+    <select id="showNoticeFile"  parameterType="com.shopify.main.MainData" resultType="com.shopify.main.MainData">
+        SELECT
+        	  idx
+        	, origin_name AS file_name
+        	, file_url AS file_download_uri
+        	, file_size AS size
+        FROM tb_notice_file
+        WHERE 1 = 1
+        AND notice_idx = #{idx}
+        AND deleted_yn = 'N'    
+    </select> 
+    
+</mapper>

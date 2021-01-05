@@ -1,0 +1,822 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.shopify.mapper.SettingMapper">
+
+    <!-- 
+        설정 > 계정정보 > 셀러 정보 Select
+    -->
+    <select id="selectSeller" parameterType="com.shopify.setting.SettingData" resultType="com.shopify.setting.SettingData">
+        SELECT 
+            email
+            , seller_id
+            , first_name
+            , last_name
+            , ifnull(first_name_ename, '') AS first_name_ename
+            , ifnull(last_name_ename, '') AS last_name_ename
+            , phone_number
+            , company_num
+            , company
+            , company_ename
+            , rank_id
+            , use_yn 
+        FROM tb_seller 
+        WHERE email = #{email} AND use_yn = 'Y'
+    </select>
+    
+    <select id="selectSellerRank" parameterType="String" resultType="String">
+    
+		SELECT code_kname as rankName FROM tb_use_code WHERE code_id = #{rankId}
+    </select>
+    
+    <!-- 
+        설정 > 계정정보 > 셀러 정보 Update
+    -->
+    <update id="updateSeller" parameterType="com.shopify.setting.SettingData">
+        UPDATE tb_seller SET first_name = #{firstName} 
+            , last_name = #{lastName}
+            , first_name_ename = #{firstNameEname} 
+            , last_name_ename = #{lastNameEname}
+            , phone_number = #{phoneNumber}
+            , company_num = #{companyNum} 
+            , company = #{company}
+            , company_ename = #{companyEname} 
+        WHERE email = #{email}
+    </update>
+    
+    <!-- 
+        설정 > 계정정보 > 샵 정보 Select
+    -->
+    <select id="selectShop" parameterType="com.shopify.setting.SettingShopData" resultType="com.shopify.setting.SettingShopData">
+        SELECT shop_idx, ecommerce, account_owner, shop_id, shop_name, use_yn  FROM tb_shop WHERE email = #{email} AND del_yn='N'
+    </select>
+    
+    <select id="selectShopXXX" resultType="com.shopify.setting.SettingShopData">
+		        SELECT shop_idx, ecommerce, account_owner, shop_id, shop_name, use_yn  
+		 FROM tb_shop 
+		 WHERE shop_idx IN ( 93, 96)
+    </select>
+    
+    <!-- 
+        설정 > 배송정보 > 판매 쇼핑몰 연동 수정
+    -->
+    <update id="updateUseShop" parameterType="com.shopify.setting.SettingShopData">
+        UPDATE tb_shop SET use_yn = #{useYn} WHERE shop_idx = #{shopIdx}
+    </update>
+    
+    <!-- 
+        설정 > 배송정보 > 판매 쇼핑몰 삭제
+    -->
+    <delete id="deleteShop" parameterType="com.shopify.setting.SettingShopData">
+        UPDATE tb_shop SET del_yn = 'Y' WHERE shop_idx = #{shopIdx}
+    </delete>
+
+    <!-- 
+         설정 > 배송정보 > 출고지 정보 Select
+    -->
+    <select id="selectSender" parameterType="com.shopify.setting.SettingSenderData" resultType="com.shopify.setting.SettingSenderData">
+        SELECT 
+              B.sender_idx
+            , B.sender_title
+            , B.shop_idx
+            , B.name
+            , B.phone_number
+            , B.zip_code
+            , B.addr1
+            , B.addr2
+            , B.addr1_ename
+            , B.addr2_ename
+            , B.province
+            , B.city
+            , B.use_default
+            , B.combine_yn
+            , B.reg_date 
+        FROM tb_shop A JOIN tb_shop_sender B 
+            ON A.shop_idx = B.shop_idx
+        WHERE A.email = #{email}
+        
+        <choose>
+            <when test="combineYn != null and combineYn == 'N'">
+                AND A.combine_yn='N' AND B.combine_yn='N'
+            </when>
+            <otherwise>
+                AND B.combine_yn='Y'
+            </otherwise>
+        </choose>
+        
+        <if test="shopIdx != null and shopIdx != 0">
+            AND B.shop_idx = #{shopIdx}
+        </if>
+        
+        <if test="senderIdx != null and senderIdx != 0">
+            AND B.sender_idx = #{senderIdx}
+        </if>
+        
+        <if test="useDefault == 'Y'" >
+            AND B.use_default = 'Y'
+        </if>
+    </select>
+    
+    <!-- 
+         설정 > 배송정보 > 출고지 정보 Select detail
+    -->
+    <select id="selectSenderDetail" parameterType="com.shopify.setting.SettingSenderData" resultType="com.shopify.setting.SettingSenderData">
+        SELECT 
+              B.sender_idx
+            , B.sender_title
+            , B.shop_idx
+            , B.name
+            , B.phone_number
+            , B.zip_code
+            , B.addr1
+            , B.addr2
+            , B.addr1_ename
+            , B.addr2_ename
+            , B.province
+            , B.city
+            , B.use_default
+            , B.combine_yn
+            , B.reg_date 
+        FROM tb_shop A JOIN tb_shop_sender B 
+            ON A.shop_idx = B.shop_idx
+        WHERE A.email = #{email} AND sender_idx = #{senderIdx}
+    </select>
+    
+    <!-- 
+        설정 > 배송정보 > 출고지 기본 정보 
+    -->
+    <select id="selectSenderDefault" parameterType="com.shopify.setting.SettingSenderData" resultType="com.shopify.setting.SettingSenderData">
+        SELECT 
+              B.sender_idx
+            , B.sender_title
+            , B.shop_idx
+            , B.name
+            , B.phone_number
+            , B.zip_code
+            , B.addr1
+            , B.addr2
+            , B.addr1_ename
+            , B.addr2_ename
+            , B.province
+            , B.city
+            , B.use_default
+            , B.combine_yn
+            , B.reg_date 
+        FROM tb_shop A JOIN tb_shop_sender B 
+            ON A.shop_idx = B.shop_idx
+        WHERE A.email = #{email} AND B.use_default = 'Y'
+    </select>
+    
+    <!-- 
+        설정 > 배송정보 > 출고지 정보 insert
+    -->
+    <insert id="insertSender" parameterType="com.shopify.setting.SettingSenderData">
+        INSERT INTO tb_shop_sender(shop_idx, sender_title, name, phone_number, zip_code, addr1, addr2, addr1_ename, addr2_ename, province, city, use_default, combine_yn)
+            VALUES(#{shopIdx}, #{senderTitle}, #{name}, #{phoneNumber}, #{zipCode}, #{addr1}, #{addr2},  #{addr1Ename}, #{addr2Ename},  #{province}, #{city}, #{useDefault}, #{combineYn})
+    </insert>
+    
+    <!-- 
+        설정 > 배송정보 > 출고지 정보 update
+    -->
+    <update id="updateSender" parameterType="com.shopify.setting.SettingSenderData">
+        UPDATE tb_shop_sender SET sender_title = #{senderTitle}  
+           , name = #{name} 
+	       , phone_number = #{phoneNumber} 
+	       , zip_code = #{zipCode} 
+	       , addr1 = #{addr1} 
+	       , addr2 = #{addr2} 
+	       , addr1_ename = #{addr1Ename} 
+	       , addr2_ename = #{addr2Ename} 
+	       , province = #{province} 
+	       , city = #{city} 
+	       , use_default = #{useDefault} 
+        WHERE sender_idx = #{senderIdx}
+    </update>
+    
+    <update id="updateDefaultSender" parameterType="com.shopify.setting.SettingSenderData">
+        UPDATE tb_shop_sender SET use_default = #{useDefault} WHERE sender_idx = #{senderIdx}
+    </update>
+    
+    <update id="updateResetSender" parameterType="com.shopify.setting.SettingSenderData">
+        UPDATE tb_shop A JOIN tb_shop_sender B SET B.use_default = 'N' WHERE A.email = #{email}
+        <choose>
+            <when test="combineYn != null and combineYn == 'N'">
+                AND A.combine_yn='N' AND B.combine_yn='N' AND B.shop_idx = #{shopIdx}
+            </when>
+            <otherwise>
+                AND B.combine_yn='Y'
+            </otherwise>
+        </choose>
+    </update>
+    
+    <update id="updateCombineSender" parameterType="com.shopify.setting.SettingSenderData">
+        UPDATE tb_shop_sender SET combine_yn = #{combineYn} WHERE sender_idx = #{senderIdx}
+    </update>
+    
+    <!-- 
+        설정 > 배송정보 > 출고지 정보 delete
+    -->
+    <delete id="deleteSender" parameterType="com.shopify.setting.SettingSenderData">
+        DELETE FROM tb_shop_sender WHERE sender_idx = #{senderIdx}
+    </delete>
+
+    <!-- 
+         설정 > 배송정보 > 포장재 정보 Select
+    -->
+    <select id="selectBox" parameterType="com.shopify.setting.SettingBoxData" resultType="com.shopify.setting.SettingBoxData">
+        SELECT 
+              B.box_idx
+            , B.shop_idx
+            , B.box_type
+            <choose>
+                <when test="userLang != 'ko'">
+                    , (SELECT code_ename FROM tb_use_code WHERE code_group='H010000' AND code_etc=B.box_type) AS boxTypeName
+                </when>
+                <otherwise>
+                    , (SELECT code_kname FROM tb_use_code WHERE code_group='H010000' AND code_etc=B.box_type) AS boxTypeName
+                </otherwise>
+            </choose>
+            , B.box_title
+            , B.box_length 
+            , B.box_width
+            , B.box_height
+            , B.box_unit
+            , B.box_weight
+            , B.weight_unit
+            , B.use_default
+            , B.combine_yn
+            , B.reg_date            
+        FROM tb_shop A JOIN tb_shop_box B 
+            ON A.shop_idx = B.shop_idx
+        WHERE A.email = #{email}
+        
+        <choose>
+            <when test="combineYn != null and combineYn == 'N'">
+                AND A.combine_yn='N' AND B.combine_yn='N'
+            </when>
+            <otherwise>
+                AND B.combine_yn='Y'
+            </otherwise>
+        </choose>
+        
+        <if test="shopIdx != null and shopIdx != 0">
+            AND B.shop_idx = #{shopIdx}
+        </if>
+        
+        <if test="useDefault == 'Y'" >
+            AND B.use_default = 'Y'
+        </if> 
+    </select>
+    
+    <!-- 
+         설정 > 배송정보 > 포장재 정보 Select detail
+    -->    
+    <select id="selectBoxDetail" parameterType="com.shopify.setting.SettingBoxData" resultType="com.shopify.setting.SettingBoxData">
+        SELECT 
+              B.box_idx
+            , B.shop_idx
+            , B.box_type
+            , B.box_title
+            , B.box_length 
+            , B.box_width
+            , B.box_height
+            , B.box_unit
+            , B.box_weight
+            , B.weight_unit
+            , B.use_default
+            , B.combine_yn
+            , B.reg_date            
+        FROM tb_shop A JOIN tb_shop_box B 
+            ON A.shop_idx = B.shop_idx
+        WHERE A.email = #{email} AND B.box_idx = #{boxIdx}
+    </select>
+    
+    <!-- 
+        설정 > 배송정보 > 출고지 기본 정보 
+    -->
+    <select id="selectBoxDefault" parameterType="com.shopify.setting.SettingBoxData" resultType="com.shopify.setting.SettingBoxData">
+        SELECT 
+              B.box_idx
+            , B.shop_idx
+            , B.box_type
+            , B.box_title
+            , B.box_length 
+            , B.box_width
+            , B.box_height
+            , B.box_unit
+            , B.box_weight
+            , B.weight_unit         
+        FROM tb_shop A JOIN tb_shop_box B 
+            ON A.shop_idx = B.shop_idx
+        WHERE A.email = #{email} AND B.use_default = 'Y'
+    </select>
+    
+    <!-- 
+        설정 > 배송정보 > 포장재 정보 insert
+    -->
+     <insert id="insertBox" parameterType="com.shopify.setting.SettingBoxData">
+        INSERT INTO tb_shop_box(shop_idx, box_type, box_title, box_length, box_width, box_height, box_unit, box_weight, weight_unit, use_default, combine_yn)
+            VALUES(#{shopIdx}, #{boxType}, #{boxTitle}, #{boxLength}, #{boxWidth}, #{boxHeight}, #{boxUnit} , #{boxWeight}, #{weightUnit}, #{useDefault}, #{combineYn})
+    </insert>
+
+    
+    <!-- 
+        설정 > 배송정보 > 포장재 정보 update
+    -->
+    <update id="updateBox" parameterType="com.shopify.setting.SettingBoxData">
+        UPDATE tb_shop_box SET 
+            box_title = #{boxTitle} 
+           , box_length = #{boxLength} 
+           , box_width = #{boxWidth} 
+           , box_height = #{boxHeight} 
+           , box_weight = #{boxWeight}
+        WHERE box_idx = #{boxIdx}
+    </update>
+    
+    <update id="updateDefaultBox" parameterType="com.shopify.setting.SettingBoxData">
+        UPDATE tb_shop_box SET use_default = #{useDefault} WHERE box_idx = #{boxIdx}
+    </update>
+    
+    <update id="updateResetBox" parameterType="com.shopify.setting.SettingBoxData">
+        UPDATE tb_shop A JOIN tb_shop_box B SET B.use_default = 'N' 
+        WHERE A.email = #{email} AND A.shop_idx = B.shop_idx
+    </update>
+    
+    <update id="updateCombineBox" parameterType="com.shopify.setting.SettingBoxData">
+        UPDATE tb_shop_box SET combine_yn = #{combineYn} WHERE box_idx = #{boxIdx}
+    </update>
+    
+    <!-- 
+        설정 > 배송정보 > 포장재 정보 delete
+    -->
+    <delete id="deleteBox" parameterType="com.shopify.setting.SettingBoxData">
+        DELETE FROM tb_shop_box WHERE box_idx = #{boxIdx}
+    </delete>
+    
+    
+    
+    <!-- 
+         설정 > 배송정보 > 관세 정보 검색 조건
+    -->
+    <sql id="searchSku">
+        <choose>
+            <when test="combineYn neq null and combineYn == 'N'">
+                AND A.combine_yn='N' AND B.combine_yn='N' AND B.shop_idx = #{shopIdx}
+            </when>
+            <otherwise>
+                AND B.combine_yn='Y'
+            </otherwise>
+        </choose>
+        
+        <if test="shopIdx != null and shopIdx != 0">
+        AND B.shop_idx = #{shopIdx}
+        </if>
+        
+        <if test="skuIdx != null and skuIdx != 0">
+        AND B.sku_idx = #{skuIdx}
+        </if>
+        
+        <if test="searchBoxType != null and searchBoxType != ''">
+            AND item_type = #{searchBoxType}
+        </if>
+        
+        <if test="searchWord != null and searchWord != ''"> 
+            <choose>
+            <when test="searchType == 'itemCode'">
+                 AND item_code LIKE '%' #{searchWord} '%'
+            </when>
+            <when test="searchType == 'itemName'">
+                 AND item_name LIKE '%' #{searchWord} '%'
+            </when>
+            <when test="searchType == 'itemNode'">
+                 AND item_code LIKE '%' #{searchWord} '%'
+            </when>
+            <when test="searchType == 'hscode'">
+                 AND hscode LIKE '%' #{searchWord} '%'
+            </when>
+            </choose>
+        </if> 
+    </sql>    
+    
+   <sql id="searchProductType">    
+        <if test="searchProductType != null and searchProductType != ''"> 
+		      AND product_type = #{searchProductType}
+        </if> 
+        
+	</sql>
+    
+    <!-- 
+         설정 > 배송정보 > 관세 정보 count
+    -->
+    <select id="selectSkuCount" parameterType="com.shopify.setting.SettingSkuData" resultType="int">
+        SELECT count(*) AS skuCount FROM tb_shop A JOIN tb_shop_sku B 
+            ON A.shop_idx = B.shop_idx
+        WHERE A.email = #{email} and B.shop_idx =#{shopIdx}
+        
+        <include refid="searchSku"></include>
+        <include refid="searchProductType"></include>
+    </select>
+    
+    <!-- 
+         설정 > 배송정보 > 관세 정보 Select
+    -->
+    <select id="selectSku" parameterType="com.shopify.setting.SettingSkuData" resultType="com.shopify.setting.SettingSkuData">
+        SELECT B.sku_idx
+            , B.shop_idx
+            , B.item_sku
+            , B.item_code
+            , B.item_name
+            , B.select_box
+            , C.box_length
+            , C.box_width
+            , C.box_height
+            , B.box_unit
+            , B.item_weight
+            , B.weight_unit
+            , B.item_qty
+            , B.item_price
+            , B.item_origin
+            <choose>
+	            <when test="userLang != 'ko'">
+	                , (SELECT code_ename FROM tb_use_code WHERE code_group='F010000' AND code_etc = B.item_origin) AS itemOriginName
+	                , (SELECT code_ename FROM tb_use_code WHERE code_group='H040000' AND code_etc = B.item_type) AS itemTypeName
+	            </when>
+	            <otherwise>
+	                , (SELECT code_kname FROM tb_use_code WHERE code_group='F010000' AND code_etc = B.item_origin) AS itemOriginName
+	                , (SELECT code_kname FROM tb_use_code WHERE code_group='H040000' AND code_etc = B.item_type) AS itemTypeName
+	            </otherwise>
+	        </choose>
+            , B.item_type
+            , B.hscode
+            , B.repre_item_nm
+            , B.repre_item_nm_ru
+            , B.combine_yn
+            , B.reg_id
+            , B.reg_date
+            , B.price_currency
+            , C.box_title
+            , (select code_kname from tb_use_code where code_group = 'H010000' and code_etc = C.box_type ) as box_type
+            , B.use_yn
+         FROM tb_shop A 
+           JOIN tb_shop_sku B ON A.shop_idx = B.shop_idx
+           LEFT OUTER JOIN tb_shop_box C ON C.box_idx = B.select_box 
+         WHERE A.email = #{email}  and B.shop_idx =#{shopIdx}
+		<include refid="searchSku"></include>
+       	<include refid="searchProductType"></include>
+       	
+        ORDER BY B.sku_idx DESC
+        <if test="startRow neq totalPageNum"> 
+            LIMIT #{startRow}, #{pageSize}
+        </if>
+    </select>
+    
+    
+ 	<select id="selectSkuProductType" parameterType="com.shopify.setting.SettingSkuData" resultType="com.shopify.setting.SettingSkuData">
+        SELECT DISTINCT
+        	B.product_type
+        FROM tb_shop A 
+           JOIN tb_shop_sku B ON A.shop_idx = B.shop_idx
+         WHERE A.email = #{email}
+         	and not B.product_type is NULL
+		<include refid="searchSku"></include>
+        
+        ORDER BY B.sku_idx DESC
+        <if test="startRow neq totalPageNum"> 
+            LIMIT #{startRow}, #{pageSize}
+        </if>
+    </select>
+        
+    
+    
+    <select id="selectSkuDetail" parameterType="com.shopify.setting.SettingSkuData" resultType="com.shopify.setting.SettingSkuData">
+        SELECT B.sku_idx
+            , B.shop_idx
+            , B.item_sku
+            , B.item_code
+            , B.item_name
+            , B.box_length
+            , B.box_width
+            , B.box_height
+            , B.box_unit
+            , B.item_weight
+            , B.weight_unit
+            , B.item_qty
+            , B.item_price
+            , B.item_origin
+            <choose>
+                <when test="userLang != 'ko'">
+                    , (SELECT code_ename FROM tb_use_code WHERE code_group='F010000' AND code_etc = B.item_origin) AS itemOriginName
+                </when>
+                <otherwise>
+                    , (SELECT code_kname FROM tb_use_code WHERE code_group='F010000' AND code_etc = B.item_origin) AS itemOriginName
+                </otherwise>
+            </choose>
+            , B.item_type
+            , B.hscode
+            , B.combine_yn
+            , B.reg_id
+            , B.reg_date
+            , B.price_currency
+            , B.repre_item_nm
+            , B.repre_item_nm_ru
+        FROM tb_shop A JOIN tb_shop_sku B 
+            ON A.shop_idx = B.shop_idx
+        WHERE B.sku_idx = #{skuIdx}
+    </select>
+    
+    <!-- 
+        설정 > 배송정보 > 관세 정보 insert
+    -->
+    <insert id="insertSku" parameterType="com.shopify.setting.SettingSkuData">
+        INSERT INTO tb_shop_sku(shop_idx
+            , item_sku
+            , item_code
+            , variant_id
+            , product_type
+            , item_name
+            , item_option
+            , box_length
+            , box_width
+            , box_height
+            , box_unit
+            , item_weight
+            , weight_unit
+            , item_qty
+            , item_price
+            , item_origin
+            , item_type
+            , hscode 
+            <!-- , combine_yn -->
+            , reg_id
+            , price_currency
+            , repre_item_nm
+            , repre_item_nm_ru
+            , brand
+            , select_box
+        )
+        VALUES(#{shopIdx}
+            , #{itemSku}
+            , #{itemCode}
+            , #{variantId}
+            , #{productType}
+            , #{itemName}
+            , #{itemOption}
+            , #{boxLength}
+            , #{boxWidth}
+            , #{boxHeight}
+            , #{boxUnit}
+            , #{itemWeight}
+            , #{weightUnit}
+            , #{itemQty}
+            , #{itemPrice}
+            , #{itemOrigin}
+            , #{itemType}
+            , #{hscode}
+ <!--            , #{combineYn} -->
+            , #{regId}
+            , #{priceCurrency}
+            , #{repreItemNm}
+            , #{repreItemNmRu}
+            , #{vendor}
+            , #{selectBox}
+        )
+        ON DUPLICATE KEY UPDATE 
+        	item_sku = #{itemSku} ,
+        	item_code = #{itemCode}, 
+        	variant_id=#{variantId},
+        	hscode=#{hscode},
+        	item_weight=#{itemWeight},
+        	product_type = #{productType},
+        	repre_item_nm=#{repreItemNm},
+        	repre_item_nm_ru=#{repreItemNmRu},
+        	item_type='Merchandise'
+               	
+    </insert>
+
+    <!-- 
+        설정 > 배송정보 > 관세 정보 update
+    -->
+    <update id="updateSku" parameterType="com.shopify.setting.SettingSkuData">
+        UPDATE tb_shop_sku SET item_sku = #{itemSku} 
+            , item_code = #{itemCode}
+            , item_name = #{itemName}
+            , select_box = #{selectBox}
+            , box_length = #{boxLength}
+            , box_width = #{boxWidth}
+            , box_height = #{boxHeight}
+            , box_unit = #{boxUnit}
+            , item_weight = #{itemWeight}
+            , weight_unit = #{weightUnit}
+            , item_qty = #{itemQty}
+            , item_price = #{itemPrice}
+            , item_origin = #{itemOrigin}
+            , item_type = #{itemType}
+            , hscode = #{hscode}
+            , price_currency = #{priceCurrency}
+            , repre_item_nm = #{repreItemNm}
+            , repre_item_nm_ru = #{repreItemNmRu}
+        WHERE sku_idx = #{skuIdx}
+    </update>
+    
+    <update id="updateSkuBox" parameterType="com.shopify.setting.SettingSkuData">
+        UPDATE tb_shop_sku SET  
+              select_box = #{selectBox}
+            , box_length = #{boxLength}
+            , box_width = #{boxWidth}
+            , box_height = #{boxHeight}
+            , box_title = #{boxTitle}
+            , use_yn = #{useYn}
+
+        WHERE item_code = #{itemCode} and shop_idx=#{shopIdx}
+    </update>
+    
+    
+    
+    
+    
+    
+    <update id="updateCombineSku" parameterType="com.shopify.setting.SettingSkuData">
+        UPDATE tb_shop_sku SET combine_yn = #{combineYn} WHERE sku_idx = #{skuIdx}
+    </update>
+    
+    <!-- 
+        설정 > 배송정보 > 관세 정보 delete
+    -->
+    <delete id="deleteSku" parameterType="com.shopify.setting.SettingSkuData">
+        DELETE FROM tb_shop_sku WHERE sku_idx = #{skuIdx}
+    </delete>
+    
+    
+    
+        <select id="selectShopCourierInit" parameterType="com.shopify.shop.ShopData" resultType="com.shopify.order.popup.OrderCourierData" >
+		SELECT
+		    courier.company_code comcode
+		    , courier.company_kname AS comname
+		    , courier.courier_etc AS `code`
+		    , courier.courier_kname AS codename
+		    , zone.nation_code AS zone
+		    , courier.courier_code AS courierid
+		FROM tb_shipping_zone zone
+		JOIN VI_CODE_COURIER_COMPANY courier
+		  on zone.service_code = courier.courier_etc
+		  where zone.nation_code = 'KR'
+		and courier.courier_use_yn = 'Y'
+		ORDER BY zone.nation_code 
+    </select>
+    
+<!--     <select id="selectShopCourierFromEmail" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierData" > -->
+<!-- 		select courier.courier_idx as idx -->
+<!-- 		         , courier.shop_idx as shopIdx -->
+<!-- 		         , courier.nation_code as nationCode -->
+<!-- 		         , courier.code_id as courierId -->
+<!-- 		         , courier.box_type AS boxType -->
+<!-- 		         , FN_LOCALE_COURIER(courier.code_id, #{locale}) as codeName -->
+<!-- 		     from   tb_shop_courier courier -->
+<!-- 		     JOIN tb_shop shop ON courier.shop_idx = shop.shop_idx -->
+<!-- 		     WHERE shop.email = #{email} -->
+<!-- 		       AND shop.del_yn = 'N' -->
+<!--             <if test="nationCode != null and nationCode != ''"> -->
+<!--                 AND courier.nation_code = #{nationCode} -->
+<!--             </if> -->
+<!--     </select> -->
+
+<!-- 
+            WHERE shop.email IN ( #{email}, 'kshipping@solugate.com' )
+ -->
+    
+    <select id="selectShopCourierFromEmailOuter" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierData" >
+        select  shop.shop_idx as shopIdx
+                 , shop.shop_name AS shopName
+                 , courier.nation_code as nationCode
+                 , courier.code_id as courierId
+                 , courier.box_type AS boxType
+             FROM   tb_shop_courier courier
+             RIGHT JOIN tb_shop shop ON courier.shop_idx = shop.shop_idx
+           WHERE shop.email = #{email}
+               AND shop.del_yn = 'N'
+            <if test="nationCode != null and nationCode != ''">
+                AND ifnull(courier.nation_code, #{nationCode}) = #{nationCode}
+            </if>
+            <if test="shopIdx > 0">
+                 and shop.shop_idx = #{shopIdx}
+            </if>
+    </select>
+    
+    <select id="selectCourierCompanyOrder" parameterType="com.shopify.setting.CourierCompanyData" resultType="com.shopify.order.popup.OrderCourierData" >
+        SELECT company_code as comCode
+            , case when 'ko' = LOWER('ko') then company_kname 
+                ELSE company_ename END AS comName
+            ,  courier_etc as code
+            , case when 'ko' = LOWER('ko') then courier_kname 
+               ELSE courier_ename END AS codeName
+            , '' AS zone
+            , 0 AS weight
+            , 0 AS price
+                , 0 AS minDeliveryDate
+                , 0 AS maxDeliveryDate
+                , courier_seq as codeSeq
+                , courier_seq as comSeq
+            , courier_code as courierId
+            , 0 AS rankPrice
+        FROM VI_CODE_COURIER_COMPANY
+        WHERE 1=1
+          <if test="courierDomesticYn != null and courierDomesticYn != ''">
+        AND courier_domestic_yn = #{courierDomesticYn}
+         </if>
+
+    </select>
+    
+    <select id="selectCourierCompany" parameterType="com.shopify.setting.CourierCompanyData" resultType="com.shopify.setting.CourierCompanyData" >
+		    SELECT  company_code as companyCode
+            , company_kname as companyKname
+            , company_ename as companyEname
+            , case when 'ko' = LOWER('ko') then company_kname 
+                ELSE company_ename END AS companyName
+            , courier_code as courierCode
+            , courier_group as courierGroup
+            , courier_seq as courierSeq
+            , courier_kname as courierKname
+            , courier_ename as courierEname
+            , case when 'ko' = LOWER('ko') then courier_kname 
+               ELSE courier_ename END AS courierName
+            , courier_etc as courierEtc
+            , courier_discript as courierDiscript
+            , courier_use_yn as courierUseYn
+            , courier_domestic_yn as courierDomesticYn
+            FROM VI_CODE_COURIER_COMPANY
+            WHERE 1=1
+              <if test="courierDomesticYn != null and courierDomesticYn != ''">
+            AND courier_domestic_yn = #{courierDomesticYn}
+             </if>
+
+    </select>
+    
+<!--   <select id="selectShopCourier" parameterType="com.shopify.order.popup.OrderCourierData" resultType="com.shopify.order.popup.OrderCourierData" > -->
+<!-- 	  select courier_idx as idx -->
+<!-- 		  , shop_idx as shopIdx -->
+<!-- 		  , nation_code as nationCode -->
+<!-- 		  , code_id as courierId -->
+<!-- 	  from   tb_shop_courier -->
+<!-- 	  where shop_idx = #{shopIdx} -->
+<!-- 	  and nation_code = #{nationCode}  -->
+<!--     </select> -->
+    
+  <insert id="insertShopCourier" parameterType="com.shopify.order.popup.OrderCourierData">
+	  insert into tb_shop_courier (
+		  shop_idx
+		  , nation_code
+		  , code_id
+		  , box_type
+		) values (
+		  #{shopIdx}
+		  , #{nationCode}
+		  , #{courierId}
+		  , #{boxType}
+		)
+		 ON DUPLICATE KEY UPDATE
+			 shop_idx = #{shopIdx}
+			,nation_code = #{nationCode}
+			,code_id = #{courierId}
+			,box_type = #{boxType}
+    </insert>
+    
+<!--   <insert id="updateShopCourier" parameterType="com.shopify.order.popup.OrderCourierData"> -->
+<!-- 	  update tb_shop_courier set -->
+<!-- 		  shop_idx = #{shopIdx} -->
+<!-- 		  , nation_code = #{nationCode} -->
+<!-- 		  , code_id = #{courierId} -->
+<!-- 		  , box_type = #{boxType} -->
+<!--         where courier_idx = #{idx} -->
+<!--     </insert> -->
+
+    <select id="selectVolumeticCourierCompany" resultType="com.shopify.setting.ShippingCompanyData" >
+        SELECT id, 
+               code, 
+               courier, 
+               divisor 
+        FROM   tb_shipping_company 
+        WHERE  volumetic = 'Y' 
+               AND use_yn = 'Y' 
+
+    </select>
+    
+       	<select id="selectVolumeWeight" parameterType="java.util.List" resultType="com.shopify.api.ShopifyOutApiDataCarrierItems">
+ 		SELECT 
+ 			td.item_code as productCode
+ 			,IFNULL(box.box_length*box.box_width*box.box_height/6, 0) as volume_weight_six
+ 			,IFNULL(box.box_length*box.box_width*box.box_height/5, 0) as volume_weight_five
+ 		
+        	from tb_shop_sku td 
+        	LEFT OUTER JOIN tb_shop_box box on td.select_box = box.box_idx
+			WHERE td.use_yn = 'Y'
+        <choose>
+            <when test="list.size != 0">
+                AND td.item_code IN
+                <foreach collection="list" item="item" index="index" separator="," open="(" close=")">
+                    #{item.product_id}
+                </foreach>
+            </when>
+        </choose>
+    </select>
+    
+</mapper>
